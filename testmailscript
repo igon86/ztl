@@ -1,0 +1,23 @@
+#!/bin/bash
+
+./mailscript -m ciccio 2> err
+./mailscript ciccio gigi giuseppe mario 2>> err
+./mailscript ciccio gigi giuseppe 2>> err
+./mailscript multe.log  gigi giuseppe 2>> err
+./mailscript multe.log  anagrafe.txt giuseppe 2>> err
+./mailscript multe.log anagrafe.txt multe 2>> err
+
+# confronto stderr
+diff err MAILDATA/err.check
+
+#confronto multe generate
+lista=$(ls multe)
+for i in $lista; do
+# elimina la data
+    grep -v Pisa MAILDATA/multe/$i > .a
+    grep -v Pisa multe/$i > .b
+    diff .a .b
+    rm .a .b
+done
+
+exit 0

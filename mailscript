@@ -1,0 +1,126 @@
+#!/bin/bash
+
+#controllo validita` argomenti
+if [[ $# < 2 || $# > 3 ]]; then
+	echo "mailscript: Wrong number of arguments" >&2
+	echo "Usage: mailscript logfile anagrafe [ directory ]" >&2
+	echo "	\"logfile\" e' il file delle multe" >&2
+       	echo "	\"anagrafe\" e' il file degli indirizzi" >&2
+       	echo "	\"directory\" (opzionale) e' la directory dove creare le lettere" >&2
+	exit 1
+elif ! [ -f $1 ]; then
+	echo "mailscript: $1: No such file or directory" >&2
+	echo "Usage: mailscript logfile anagrafe [ directory ]" >&2
+       	echo "	\"logfile\" e' il file delle multe" >&2
+       	echo "	\"anagrafe\" e' il file degli indirizzi" >&2
+       	echo "	\"directory\" (opzionale) e' la directory dove creare le lettere" >&2
+	exit 1
+elif ! [ -f $2 ]; then
+	echo "mailscript: $2: No such file or directory" >&2
+	echo "Usage: mailscript logfile anagrafe [ directory ]" >&2
+       	echo "	\"logfile\" e' il file delle multe" >&2
+       	echo "	\"anagrafe\" e' il file degli indirizzi" >&2
+       	echo "	\"directory\" (opzionale) e' la directory dove creare le lettere" >&2
+	exit 1
+#a questo punto devo distinguere in base al numero degli argomenti
+elif  [ $# = 3 ] & ! [ -d $3 ]; then
+	echo "mailscript: $3: Not a directory" >&2
+	echo "Usage: mailscript logfile anagrafe [ directory ]" >&2
+       	echo "	\"logfile\" e' il file delle multe" >&2
+       	echo "	\"anagrafe\" e' il file degli indirizzi" >&2
+       	echo "	\"directory\" (opzionale) e' la directory dove creare le lettere" >&2
+	exit 1
+fi
+
+#mi salvo il pathname in cui salvare le multe per minimizzare le differenze nel codice tra le invocazioni con 2 o 3 argomenti
+pathmulte="."
+if [ $# == 3 ]; then
+	pathmulte="$3"
+fi
+
+#ordino la lista degli accessi
+infrazioni=$(sort $1)
+
+#inizializzazione variabili
+lastinfrazione=""
+lasttarga=""
+pathmulta=""
+naccessi=0
+
+for i in $infrazioni; do
+	if [ ${#i} == 7 ]; then
+		#sto analizzando una targa -> ci potrebbe volere un controllo che la targa sia segnata nell'anagrafe
+		if [ "$i" != "$lasttarga" ]; then
+
+			#echo "$i diverso da $lasttarga"			
+
+			#terminazione della vecchia multa - se esiste
+			if ! [ "$pathmulta" == "" ]; then
+				soldi=65
+				soldi=$((naccessi*soldi))
+				#echo $soldi
+				sed -i s:AAsoldi:$soldi: $pathmulta
+				sed -i s:AAn:$naccessi: $pathmulta
+				sed -i s:BBaccessi:: $pathmulta
+			fi
+
+			#ripristino variabili
+			naccessi=0
+			lasttarga=$i
+			lastinfrazione=""
+
+			#creazione della nuova multa
+			pathmulta="$pathmulte/$lasttarga"
+			cp intestazione.txt "$pathmulta"
+			chmod +w "$pathmulta"
+			sed -i s/AAtarga/$i/ $pathmulta
+
+			#ora devo recuperare i parametri dall'anagrafe magari ci andrebbe messo un bel controllino che la targa esiste
+
+			anagrafe=$(grep $lasttarga $2)
+			numero_civico=${anagrafe##*,}
+			#echo $numero_civico
+
+			anagrafe=${anagrafe%,*}
+			indirizzo=${anagrafe##*, }
+			#echo $indirizzo
+			sed -i s/AAindirizzo/" $indirizzo,$numero_civico"/ $pathmulta
+			
+			anagrafe=${anagrafe%,*}
+			localita=${anagrafe##*, }
+			#echo $localita
+			sed -i s/AAlocalita/" $localita"/ $pathmulta			
+
+			anagrafe=${anagrafe%,*}
+			nome=${anagrafe##*,}
+			#echo $nome
+			sed -i s/AAnome/"$nome"/ $pathmulta
+
+			anagrafe=${anagrafe%,*}
+			cognome=${anagrafe##*,}
+			#echo $cognome
+			sed -i s/AAcognome/"$cognome"/ $pathmulta
+		fi
+	else
+		#sto analizzando un passaggio
+		if [ "$i" != "$lastinfrazione" ]; then
+			#echo "$i diversa da $lastinfrazione"
+			naccessi=$((naccessi+1))
+			#devo distinguere se e` il primo accesso oppure no
+			sed -i s[BBaccessi['\
+'"$i"BBaccessi[ $pathmulta
+			sed -i s[AAaccessi["$i"BBaccessi[ $pathmulta
+			lastinfrazione=$i
+		fi		
+	fi
+done
+
+#finalizzo l'ultima multa
+if ! [ "$pathmulta" == "" ]; then
+	soldi=65
+	soldi=$((naccessi*soldi))
+	sed -i s:AAsoldi:$soldi: $pathmulta
+	sed -i s:AAn:$naccessi: $pathmulta
+	sed -i s:BBaccessi:: $pathmulta
+fi
+exit 0
