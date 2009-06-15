@@ -1,0 +1,25 @@
+mailscript: -m: No such file or directory
+Usage: mailscript logfile anagrafe [ directory ]
+	"logfile" e' il file delle multe
+	"anagrafe" e' il file degli indirizzi
+	"directory" (opzionale) e' la directory dove creare le lettere
+mailscript: Wrong number of arguments
+Usage: mailscript logfile anagrafe [ directory ]
+	"logfile" e' il file delle multe
+	"anagrafe" e' il file degli indirizzi
+	"directory" (opzionale) e' la directory dove creare le lettere
+mailscript: ciccio: No such file or directory
+Usage: mailscript logfile anagrafe [ directory ]
+	"logfile" e' il file delle multe
+	"anagrafe" e' il file degli indirizzi
+	"directory" (opzionale) e' la directory dove creare le lettere
+mailscript: gigi: No such file or directory
+Usage: mailscript logfile anagrafe [ directory ]
+	"logfile" e' il file delle multe
+	"anagrafe" e' il file degli indirizzi
+	"directory" (opzionale) e' la directory dove creare le lettere
+mailscript: giuseppe: Not a directory
+Usage: mailscript logfile anagrafe [ directory ]
+	"logfile" e' il file delle multe
+	"anagrafe" e' il file degli indirizzi
+	"directory" (opzionale) e' la directory dove creare le lettere
