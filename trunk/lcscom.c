@@ -1,8 +1,13 @@
-/**  \file lcscom.c
- *   \author Fabio Luporini
- *  \brief libreria di comunicazione server client
- *
- *  Implementazione della libreria che definisce l'interfaccia di comunicazione fra client e server
+/** 
+\file lcscom.c
+\author	Andrea Lottarini
+\brief libreria di comunicazione server client
+ 
+ Libreria che definisce l'interfaccia di comunicazione fra client e server
+(canali di comunicazione realizzati con socket AF_UNIX) 
+
+Si dichiara che il contenuto di questo file e` in ogni sua parte opera
+originale dell'autore.
  */
 
 #include <sys/types.h>
