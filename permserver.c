@@ -69,15 +69,22 @@ static message_t checkPermesso(){
 
 static void* writer(void* arg){
 	struct stat mod;
+	FILE* file;
 	
 	while(working){
-		//aggiungere comando per terminare
+		ec_null(file = fopen(arg,"r"),"problema nell'apertura del file dei permessi");
+		//aggiungere comando per mettere working a zero contestualmente alla scoperta dell'errore -> oppure la exit chiude tutto?
 		ec_meno1(fstat((int) file,&mod),"problema nella lettura della data di modifica del file dei permessi");
-		if(mod.sc_mtime> lastModified){
-			lastModified = mod.sc_mtime;
-			//rileggi il file
+		if(mod.st_mtime > lastModified){
+			lastModified = mod.st_mtime;
+			
+			/** aggiornamento dell'albero dei permessi */
+
+			pthread_mutex_lock(&mtxtree);
+			ec_meno1(loadPerm(file,&tree),"problema nel caricamento dell'albero dei permessi");
+			pthread_mutex_unlock(&mtxtree);
 		}
-		sleep(3);
+		sleep(NSEC);
 	}
 }
 
@@ -166,7 +173,7 @@ int main(int argc, char *argv[]){
 	ec_meno1(com,"problema nella creazione della server socket");
 
 	/*creazione thread writer*/
-	if(! (pthread_create(&tid_writer,NULL,writer,NULL) == 0) ){
+	if(! (pthread_create(&tid_writer,NULL,writer,argv[1]) == 0) ){
 		//gestione errore creazione thread writer
 	}
 	

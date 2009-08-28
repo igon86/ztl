@@ -24,7 +24,7 @@ LIBS = -L $(LIBDIR)
 LIBNAME = libztl.a
 
 # Lista degli object files (** DA COMPLETARE ***)
-OBJS = intervals.o ptree.o ilist.o test-libztl.o permserver.o
+OBJS = intervals.o ptree.o ilist.o test-libztl.o
 
 # nome eseguibile
 exe = prova
@@ -54,7 +54,7 @@ ilist.o: ilist.c ilist.h intervals.h
 
 intervals.o: intervals.c intervals.h
 
-permserver.o: ptree.h
+#permserver.o: ptree.h
 
 
 
