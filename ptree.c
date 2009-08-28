@@ -240,8 +240,8 @@ int loadPerm(FILE* ingresso, nodo_t** r) {
 		pt=convertiRecord(buf);
 		if(addPerm(r, pt)){
 			free(pt);
-		    errno=EINVAL;
-		    return -1;
+		    	errno=EINVAL;
+		    	return -1;
 		}
 		free(pt);
 	}

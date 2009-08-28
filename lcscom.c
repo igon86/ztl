@@ -25,23 +25,19 @@ originale dell'autore.
 #define LEGGI(FIELD,E,DIM) if ( ( size = read ( sc, E(msg->FIELD), DIM ) ) == -1 ) return -1; if ( size != DIM ) return SEOF;
 #define SCRIVI(FIELD,DIM) if ( ( written = write ( sc, FIELD, DIM ) ) < DIM ) return -1; bytes += written;
 
-#define UNIX_PATH_MAX 108
-
 serverChannel_t createServerChannel ( const char* path ) {
 	serverChannel_t sck;
 	struct sockaddr_un sa;
 	
-	if ( ! path )
-		ERROR(EINVAL,-1)
+	if ( path == 0 ) ERROR(EINVAL,-1)
 				
 	/*controllo che il nome della socket non ecceda UNIX_PATH_MAX. */
 	if ( strlen( path ) > UNIX_PATH_MAX )
-		ERROR(EINVAL,SOCKNAMETOOLONG)
+		ERROR(EINVAL,SNAMETOOLONG)
 	
 	/*inizializzo, in modo conforme alle specifiche, la struttura indirizzo. */
 	strncpy ( sa.sun_path, path, UNIX_PATH_MAX );
 	sa.sun_family = AF_UNIX;
-	
 	if ( (sck = socket ( AF_UNIX, SOCK_STREAM, 0)) == -1 ) 
 		return -1; /*errore creazione socket. errno gia' settato. */
 	
@@ -59,7 +55,7 @@ serverChannel_t createServerChannel ( const char* path ) {
 }
 
 int closeSocket ( serverChannel_t s ) {
-	unlink ( TMP SKTNAME );
+	unlink ( "./tmp/permsock" );
 	return close ( s );
 }
 
@@ -96,9 +92,12 @@ int sendMessage ( channel_t sc, message_t *msg ) {
 	
 	bytes = written = 0;				
 	
-	SCRIVI ( &(msg->type), 1 )			/*scrivo il tipo del messagio. */
-	SCRIVI ( &(msg->length), sizeof(int) )		/*scrivo la lunghezza del buffer. */
-	SCRIVI ( msg->buffer, msg->length )		/*scrivo i caratteri del buffer. */
+	/*scrivo il tipo del messagio. */
+	SCRIVI ( &(msg->type), 1 )		
+	/*scrivo la lunghezza del buffer. */	
+	SCRIVI ( &(msg->length), sizeof(int) )	
+	/*scrivo i caratteri del buffer. */	
+	SCRIVI ( msg->buffer, msg->length )		
 
 	return bytes;
 }
@@ -117,7 +116,7 @@ channel_t openConnection ( const char* path ) {
 				
 	/*controllo che il nome della socket non ecceda UNIX_PATH_MAX. */
 	if ( strlen( path ) > UNIX_PATH_MAX )
-		ERROR(EINVAL,SOCKNAMETOOLONG)
+		ERROR(EINVAL,SNAMETOOLONG)
 	
 	/*inizializzo, in modo conforme alle specifiche, la struttura indirizzo. */
 	strncpy ( sa.sun_path, path, UNIX_PATH_MAX );
