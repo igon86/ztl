@@ -1,9 +1,0 @@
-AS105SU, Rossi, Mario, Pisa, Via Piave, 40
-AU663XZ, Viviani, Laura, Livorno, Piazza Attias, 11
-BU995PK, Del Ponte, Carlo, Pisa, Largo Pontecorvo, 5
-CN445JK, Rosa, Giuseppe Matteo, Lucca, Via S. Stefano, 12
-DD115PU,  De Boer, Frank, Pisa, Piazza Carrara, 16
-DS009LU, De Salve, Giulia, Pisa, Piazza S. Paolo, 34
-KC044ZZ,  Chimenti, Cinzia, Cascina (PI), Via Rook, 1
-KK876VB,  Salvemini, Vittorio, Tirrenia (PI), Via Corsica, 231
-
