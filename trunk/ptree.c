@@ -222,8 +222,8 @@ int checkPerm(char targa[], time_t t, nodo_t* r) {
 
 /**
  * Legge il file che contiene l'archivio storico dei permessi e crea
- * l'albero di ricerca ordinato i permessi sono scritti in formato
- * stringa e separati da un '\n'
+ * l'albero di ricerca ordinato.
+ * i permessi sono scritti in formato stringa e separati da un '\n'
 
  \param ingresso il file di ingresso
  \param r il puntatore al puntatore alla radice dell'albero

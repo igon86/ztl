@@ -118,7 +118,7 @@ channel_t openConnection ( const char* path ) {
 	if ( strlen( path ) > UNIX_PATH_MAX )
 		ERROR(EINVAL,SNAMETOOLONG)
 	
-	/*inizializzo, in modo conforme alle specifiche, la struttura indirizzo. */
+	/*inizializzazione della struct indirizzo. */
 	strncpy ( sa.sun_path, path, UNIX_PATH_MAX );
 	sa.sun_family = AF_UNIX;
 	

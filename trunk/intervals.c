@@ -89,6 +89,7 @@ int calcolaTime(char *r, time_t * ret) {
 	*ret = mktime(&bdt);
 	return 1;
 }
+
 /** Trasforma una stringa
 
  XXXXXXX gg/mm/aaaa-hh:mm gg/mm/aaaa-hh:mm

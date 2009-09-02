@@ -52,6 +52,28 @@ typedef struct
   intervallo_t in;
 } permesso_t;
 
+/**
+Trasforma una stringa gg/mm/aaaa-hh:mm nella corrispondente
+struct tm e quindi in un time_t
+
+\param r stringa da convertire
+\param ret puntatore al time_t in cui salvare la conversione
+
+\retval 1 se la conversione è andata a buon fine
+\retval 0 altrimenti
+ */
+int calcolaTime(char *r, time_t * ret);
+
+/** 
+Verifica che la stringa passata per argomento contenga una targa (nei primi 7 caratteri) 
+
+\param r stringa da verificare
+
+\retval 1 se la stringa rispetta il formato
+\retval 0 altrimenti
+*/
+int validaTarga(char r[]);
+
 /** Trasforma una stringa
 
      XXXXXXX gg/mm/aaaa-hh:mm gg/mm/aaaa-hh:mm
