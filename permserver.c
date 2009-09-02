@@ -126,8 +126,9 @@ static void termina(){
 	working=0;
 }
 
-static void closeServer(){
-	//mettere la gestione della terminazione
+static void closeServer(FILE* fp,nodo_t* tree){
+	if(fp) close(fp);
+	if(tree) free(tree);
 }
 
 /******************************************************************************************************
@@ -139,7 +140,7 @@ int main(int argc, char *argv[]){
 	struct sigaction term, pipe;
 	FILE* file;
 	nodo_t* tree;
-	pthread_t tid_writer;
+	pthread_t tid_writer,tid_worker;
 	struct stat mod;
 	
 	/* Controllo numero argomenti */
@@ -184,7 +185,7 @@ int main(int argc, char *argv[]){
 		new = acceptConnection(com);
 		ec_meno1(new,"problema nell'accettare una connessione");
 
-		if(! (pthread_create(&tid_writer,NULL,worker,&new) == 0) ){
+		if(! (pthread_create(&tid_worker,NULL,worker,&new) == 0) ){
 			//gestione errore creazione thread writer
 		}
 		else{
@@ -194,7 +195,7 @@ int main(int argc, char *argv[]){
 	}
 	//qui working e` stato modificato quindi devo attendere la terminazione di tutti i worker + la terminazione del thread writer (con join esplicita)
 
-	closeServer();	
+	closeServer(tree,file);
 
 	return 0;
 }
