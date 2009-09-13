@@ -31,7 +31,7 @@ static void checkPassaggio(char *temp){
 	}
 	strncpy(targa,temp,7);
 	temp = temp+LTARGA+1;
-	calcolaTime(temp,tempo);
+	calcolaTime(temp,&tempo);
 	channel_t sock = openConnection(SOCKET);
 	
 }
@@ -44,15 +44,11 @@ static channel_t connetti(){
 	int numretry = 1;
 	channel_t connessione = -1;
 
-	while(! working && numretry < MAXRETRY){
+	while(! working && numretry++ < MAXRETRY){
 		channel_t connessione = openConnection(SOCKET);
 		if( connessione != -1 && connessione != SNAMETOOLONG ) working = 1;
 	}
 	
-	if(!working){
-		fprintf(stderr,"Problema nella connessione al server");
-		exit(EXIT_FAILURE);
-	}
 	return connessione;
 }
 
@@ -78,7 +74,7 @@ int main(int argc,char *argv[]){
 	/* connessione al server*/
 	channel_t connessione;
 	/* buffer per le stringhe lette da stdin*/
-	char[LUNGPASSAGGIO] temp;
+	char temp[LUNGPASSAGGIO];
 
 	pthread_t tid_writer,tid_worker;
 
@@ -102,7 +98,7 @@ int main(int argc,char *argv[]){
 	ec_meno1(sigaction ( SIGPIPE, &pipe, NULL ),"problema nell'installazione del gestore di SIGPIPE");
 
 	/* connessione con il server*/
-	connessione = connetti();
+	ec_meno1(connessione = connetti(),"Problema nella connessione al server\n");
 
 	/* apertura logfile*/
 	//queste vanno modificate con le chiamate alle funzioni di pulizia
