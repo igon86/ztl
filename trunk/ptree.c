@@ -235,7 +235,9 @@ int loadPerm(FILE* ingresso, nodo_t** r) {
 	permesso_t *pt;
 	char buf[50];
 	int prima,dopo;
+
 	prima=sizeTree(*r);
+	
 	while (fgets(buf, 50, ingresso)) {
 		pt=convertiRecord(buf);
 		if(addPerm(r, pt)){

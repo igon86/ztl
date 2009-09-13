@@ -28,7 +28,7 @@ pthread_mutex_t mtxtree	= PTHREAD_MUTEX_INITIALIZER;
 
 /* numero di thread attivi e relativo semaforo*/
 int numThread = 0;
-pthread_mutex_t mtxnumThread	= PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mtxnumThread = PTHREAD_MUTEX_INITIALIZER;
 
 /* data di ultima modifica del file dei permessi*/
 time_t lastModified;
@@ -72,9 +72,8 @@ static void* writer(void* arg){
 	FILE* file;
 	
 	while(working){
-		ec_null(file = fopen(arg,"r"),"problema nell'apertura del file dei permessi");
 		//aggiungere comando per mettere working a zero contestualmente alla scoperta dell'errore -> oppure la exit chiude tutto?
-		ec_meno1(fstat((int) file,&mod),"problema nella lettura della data di modifica del file dei permessi");
+		ec_meno1(stat((char*) arg,&mod),"problema nella lettura della data di modifica del file dei permessi");
 		if(mod.st_mtime > lastModified){
 			lastModified = mod.st_mtime;
 			
@@ -123,6 +122,7 @@ static void* worker(void* arg){
 ******************************************************************************************************/
 
 static void termina(){
+
 	working=0;
 }
 
@@ -136,18 +136,29 @@ static void closeServer(FILE* fp,nodo_t* tree){
 ******************************************************************************************************/
 
 int main(int argc, char *argv[]){
-
+	
+	/* strutture dati per la gestione dei segnali*/
 	struct sigaction term, pipe;
 	FILE* file;
-	nodo_t* tree;
+	nodo_t* tree_p = NULL;
+	/* id unico del thread writer e id dell'ultimo thred worker creato*/
 	pthread_t tid_writer,tid_worker;
+	/* server socket*/
+	serverChannel_t com;
+	/* socket da assegnare a un worker*/
+	channel_t new;
+	/* struttura dati per il salvataggio delle statistiche del file dei permessi*/
 	struct stat mod;
+	int status;
 	
+
 	/* Controllo numero argomenti */
 	if (argc!=2){
 		fprintf(stderr,"Numero parametri invalido\n");
 		exit(EXIT_FAILURE);
 	}
+
+
 
 	/* installazione del gestore di SIGTERM e SIGINT*/
 	bzero(&term,sizeof(term));
@@ -162,25 +173,37 @@ int main(int argc, char *argv[]){
 	
 	ec_meno1(sigaction ( SIGPIPE, &pipe, NULL ),"problema nell'installazione del gestore di SIGPIPE");
 
+
+
 	/*primo caricamento albero dei permessi*/
-	ec_null(file = fopen(argv[1],"r"),"problema nell'apertura del file dei permessi");
-	ec_meno1(fstat((int) file,&mod),"problema nella lettura della data di modifica del file dei permessi");
+	ec_meno1(stat(argv[1],&mod),"problema nella lettura della data di modifica del file dei permessi");
 	lastModified = mod.st_mtime;
-	ec_meno1(loadPerm(file,&tree),"problema nel caricamento dell'albero dei permessi");
+
+	ec_null(file = fopen(argv[1],"r"),"problema nell'apertura del file dei permessi");
+	ec_meno1(loadPerm(file,&tree_p),"problema nel caricamento dell'albero dei permessi");
 	
-	
+#if DEBUG
+	printf("APERTURA FILE COMPLETATA\n");
+#endif	
+
+
 	/*creazione della socket*/
-	serverChannel_t com = createServerChannel(SOCKET);
-	ec_meno1(com,"problema nella creazione della server socket");
+	ec_meno1(com = createServerChannel(SOCKET),"problema nella creazione della server socket");
+
+#if DEBUG
+	printf("SERVER SOCKET CREATA\n");
+#endif	
 
 	/*creazione thread writer*/
 	if(! (pthread_create(&tid_writer,NULL,writer,argv[1]) == 0) ){
 		//gestione errore creazione thread writer
 	}
+
+#if DEBUG
+	printf("THREAD WRITER CREATO\n");
+#endif	
 	
 	while(working){
-		/* socket da assegnare a un worker*/
-		channel_t new;
 		
 		new = acceptConnection(com);
 		ec_meno1(new,"problema nell'accettare una connessione");
@@ -194,8 +217,12 @@ int main(int argc, char *argv[]){
 		}
 	}
 	//qui working e` stato modificato quindi devo attendere la terminazione di tutti i worker + la terminazione del thread writer (con join esplicita)
-
-	closeServer(tree,file);
+	/* Join sul writer */
+#if DEBUG
+	printf("JOIN THREAD WRITER CREATO\n");
+#endif
+	pthread_join(tid_writer,(void*) &status);
+	closeServer(file,tree_p);
 
 	return 0;
 }
