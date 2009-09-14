@@ -11,7 +11,7 @@
 //PILA DI INTERAZIONE tra worker e writer
 
 #define MAXRETRY 5
-#define LUNGPASSAGGIO 24
+#define LUNGPASSAGGIO 25
 
 static int working = 0;
 
@@ -23,9 +23,11 @@ static void checkPassaggio(char *temp){
 	message_t richiesta,risposta;
 	char targa[LTARGA];
 	time_t tempo;
-
+#if DEBUG
+	printf("Sto analizzando: %s",temp);
+#endif
 	if(!validaTarga(temp)){
-		fprintf(stderr,"Problema nella lettura di un passaggio da stdin");
+		fprintf(stderr,"Problema nella lettura di un passaggio da stdin\n");
 		//pulizia
 		exit(EXIT_FAILURE);
 	}
@@ -45,8 +47,16 @@ static channel_t connetti(){
 	channel_t connessione = -1;
 
 	while(! working && numretry++ < MAXRETRY){
-		channel_t connessione = openConnection(SOCKET);
-		if( connessione != -1 && connessione != SNAMETOOLONG ) working = 1;
+#if DEBUG
+			printf("TENTATIVO NUM: %d...",numretry);
+#endif	
+		connessione = openConnection(SOCKET);
+		if( connessione != -1 && connessione != SNAMETOOLONG ){
+#if DEBUG
+			printf("CONNESSIONE AVVENUTA CON SUCCESSO\n");
+#endif	
+			working = 1;
+		}
 	}
 	
 	return connessione;
@@ -100,17 +110,26 @@ int main(int argc,char *argv[]){
 	/* connessione con il server*/
 	ec_meno1(connessione = connetti(),"Problema nella connessione al server\n");
 
+#if DEBUG
+	printf("CONNESSO AL SERVER\n");
+	fflush(stdout);
+#endif
+
 	/* apertura logfile*/
 	//queste vanno modificate con le chiamate alle funzioni di pulizia
 	ec_meno1(fp = fopen(argv[1],"w"),"problema nell'apertura del file di log");
 	
 	//manca la creazione del thread worker
 	while(working){
+
 		/* lettura di un passaggio dallo stdin*/
-		read(temp,LUNGPASSAGGIO,stdin);
+		fread(temp,LUNGPASSAGGIO,1,stdin);
+
 		/* passaggio del lavoro a un thread worker*/
 		if(! (pthread_create(&tid_worker,NULL,checkPassaggio,temp) == 0) ){
-			//gestione errore creazione thread worker
+#if DEBUG
+			printf("PROBLEMA NELLA CREAZIONE DI UN THREAD WORKER!!!\n");
+#endif	
 		}
 	}	
 	
