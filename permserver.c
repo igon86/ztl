@@ -69,12 +69,17 @@ static message_t checkPermesso(){
 
 static void* writer(void* arg){
 	struct stat mod;
-	FILE* file;
+	FILE* file = NULL;
 	
 	while(working){
 		//aggiungere comando per mettere working a zero contestualmente alla scoperta dell'errore -> oppure la exit chiude tutto?
 		ec_meno1(stat((char*) arg,&mod),"problema nella lettura della data di modifica del file dei permessi");
+		file = fopen((char*) arg,"r");
 		if(mod.st_mtime > lastModified){
+#if DEBUG
+			printf("WRITE: RILEVATA MODIFICA\n");
+			fflush(stdout);
+#endif
 			lastModified = mod.st_mtime;
 			
 			/** aggiornamento dell'albero dei permessi */
@@ -85,6 +90,13 @@ static void* writer(void* arg){
 		}
 		sleep(NSEC);
 	}
+	
+	if(file) fclose(file);
+#if DEBUG
+	printf("THREAD WRITER EXIT.....");
+	fflush(stdout);
+#endif
+	pthread_exit((void*) NULL);
 }
 
 /******************************************************************************************************
@@ -94,6 +106,11 @@ static void* writer(void* arg){
 static void* worker(void* arg){
 	message_t request,response;
 	int result;
+
+#if DEBUG
+	printf("THREAD W EXIT.....");
+	fflush(stdout);
+#endif
 	
 	ec_meno1(result = receiveMessage(*((channel_t *) arg),&request),"Problema ricezione messaggio");
 	
@@ -113,7 +130,7 @@ static void* worker(void* arg){
 	}
 	
 	removeThread();
-
+	
 	return 0;
 }
 
@@ -122,13 +139,37 @@ static void* worker(void* arg){
 ******************************************************************************************************/
 
 static void termina(){
-
+	write(1,"METTO WORKING A 0\n",18);
 	working=0;
 }
 
-static void closeServer(FILE* fp,nodo_t* tree){
+static void closeServer(FILE* fp,nodo_t* tree,pthread_t tid_writer,serverChannel_t com){
+
+	int status;
+
+	
+
+	/* Join sul writer */
+#if DEBUG
+	printf("JOIN THREAD WRITER...");
+	fflush(stdout);
+#endif
+
+	pthread_join(tid_writer,(void*) &status);
+
+#if DEBUG
+	printf("COMPLETATA!\n");
+	fflush(stdout);
+#endif
+
 	if(fp) close(fp);
 	if(tree) free(tree);
+	if(com){ 
+		close(com);
+		unlink(SOCKET);
+	}
+
+	exit(EXIT_SUCCESS);
 }
 
 /******************************************************************************************************
@@ -140,13 +181,12 @@ int main(int argc, char *argv[]){
 	/* strutture dati per la gestione dei segnali*/
 	struct sigaction term, pipe;
 	FILE* file;
-	nodo_t* tree_p = NULL;
 	/* id unico del thread writer e id dell'ultimo thred worker creato*/
 	pthread_t tid_writer,tid_worker;
 	/* server socket*/
 	serverChannel_t com;
 	/* socket da assegnare a un worker*/
-	channel_t new;
+	channel_t new,test;
 	/* struttura dati per il salvataggio delle statistiche del file dei permessi*/
 	struct stat mod;
 	int status;
@@ -180,15 +220,19 @@ int main(int argc, char *argv[]){
 	lastModified = mod.st_mtime;
 
 	ec_null(file = fopen(argv[1],"r"),"problema nell'apertura del file dei permessi");
-	ec_meno1(loadPerm(file,&tree_p),"problema nel caricamento dell'albero dei permessi");
+	ec_meno1(loadPerm(file,&tree),"problema nel caricamento dell'albero dei permessi");
 	
 #if DEBUG
 	printf("APERTURA FILE COMPLETATA\n");
 #endif	
 
 
-	/*creazione della socket*/
-	ec_meno1(com = createServerChannel(SOCKET),"problema nella creazione della server socket");
+	/*creazione della server socket*/
+	com = createServerChannel(SOCKET);
+	if ( com == -1 )
+		fprintf(stderr,"problema nell'apertura della server socket\n");
+	if ( com == SNAMETOOLONG ) 
+		fprintf(stderr,"il pathname della socket e' troppo lungo\n");
 
 #if DEBUG
 	printf("SERVER SOCKET CREATA\n");
@@ -203,13 +247,19 @@ int main(int argc, char *argv[]){
 	printf("THREAD WRITER CREATO\n");
 #endif	
 	
+	ec_meno1_c(test = acceptConnection(com),"problema nell'accettare una connessione",closeServer(file,tree,tid_writer,com));
+	
+#if DEBUG
+	printf("CONNESSIONE DI TEST AVVIATA\n");
+#endif	
 	while(working){
 		
-		new = acceptConnection(com);
-		ec_meno1(new,"problema nell'accettare una connessione");
+		ec_meno1_c(new = acceptConnection(com),"problema nell'accettare una connessione",closeServer(file,tree,tid_writer,com));
 
 		if(! (pthread_create(&tid_worker,NULL,worker,&new) == 0) ){
-			//gestione errore creazione thread writer
+#if DEBUG
+			printf("PROBLEMA NELLA CREAZIONE DI UN THREAD WORKER!!!\n");
+#endif	
 		}
 		else{
 			/* tutto e` andato a buon fine incremento il numero dei thread*/
@@ -217,12 +267,8 @@ int main(int argc, char *argv[]){
 		}
 	}
 	//qui working e` stato modificato quindi devo attendere la terminazione di tutti i worker + la terminazione del thread writer (con join esplicita)
-	/* Join sul writer */
-#if DEBUG
-	printf("JOIN THREAD WRITER CREATO\n");
-#endif
-	pthread_join(tid_writer,(void*) &status);
-	closeServer(file,tree_p);
+	
+	closeServer(file,tree,tid_writer,com);
 
 	return 0;
 }
