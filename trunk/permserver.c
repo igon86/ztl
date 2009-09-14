@@ -53,12 +53,29 @@ static void removeThread(){
 					Funzioni thread worker
 ******************************************************************************************************/
 
-static message_t checkPermesso(){
+static message_t checkPermesso(message_t* request){
 	message_t response;
- 
-	pthread_mutex_lock(&mtxtree);
-	//posso anco suppore che la stringa sia ben formattata
+	//ASSUMO CHE MI ARRIVINO PERMESSI A GARBO!!! E SOLO MSG_CHK
+	char targa[LTARGA];
+	char* passaggio;
+	time_t tempo;
 
+ 	strncpy(targa,request->buffer,7);
+	
+	passaggio = request->buffer+LTARGA+1;
+	calcolaTime(passaggio,&tempo);
+
+	pthread_mutex_lock(&mtxtree);
+	
+	response.length = 0;
+	response.buffer = NULL;
+
+	if(checkPerm(targa,tempo,tree)){
+		response.type = MSG_OK;
+	}
+	else{
+		response.type = MSG_NO;	
+	}
 	pthread_mutex_unlock(&mtxtree);
 	return response;
 }
@@ -106,25 +123,25 @@ static void* writer(void* arg){
 static void* worker(void* arg){
 	message_t request,response;
 	int result;
-
-#if DEBUG
-	printf("THREAD W EXIT.....");
-	fflush(stdout);
-#endif
 	
 	ec_meno1(result = receiveMessage(*((channel_t *) arg),&request),"Problema ricezione messaggio");
+
+#if DEBUG
+	printf("Worker: Ricevuto un %c su %s",request.type,request.buffer);
+#endif
 	
 	if(result == SEOF){
-		//gestione chiusura socket
+		//gestione chiusura socket -> ma non e` uguale a prima?
 	}
 	if(request.type != 'C'){
 		//gestione messaggio impossibile
 	}
 	
 	//checkPermesso ritorna direttamente il messaggio da inviare al client
-	response = checkPermesso(request);
+	response = checkPermesso(&request);
 
 	ec_meno1(result = sendMessage(*((channel_t *) arg),&response),"Problema nell'invio risposta");
+
 	if(result == SEOF){
 		//gestione chiusura socket -> impossibile in questo caso vero?
 	}
@@ -213,8 +230,6 @@ int main(int argc, char *argv[]){
 	
 	ec_meno1(sigaction ( SIGPIPE, &pipe, NULL ),"problema nell'installazione del gestore di SIGPIPE");
 
-
-
 	/*primo caricamento albero dei permessi*/
 	ec_meno1(stat(argv[1],&mod),"problema nella lettura della data di modifica del file dei permessi");
 	lastModified = mod.st_mtime;
@@ -229,10 +244,14 @@ int main(int argc, char *argv[]){
 
 	/*creazione della server socket*/
 	com = createServerChannel(SOCKET);
-	if ( com == -1 )
+	if ( com == -1 ){
 		fprintf(stderr,"problema nell'apertura della server socket\n");
-	if ( com == SNAMETOOLONG ) 
+		exit(EXIT_FAILURE);
+	}
+	if ( com == SNAMETOOLONG ){ 
 		fprintf(stderr,"il pathname della socket e' troppo lungo\n");
+		exit(EXIT_FAILURE);
+	}
 
 #if DEBUG
 	printf("SERVER SOCKET CREATA\n");
