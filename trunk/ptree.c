@@ -208,16 +208,23 @@ nodo_t* findPerm(permesso_t * pp, nodo_t* r) {
  \retval 0 se non e' attivo alcun permesso
  */
 int checkPerm(char targa[], time_t t, nodo_t* r) {
+	
 	int discr;
-	if (r == NULL)
+
+	if (r == NULL){
 		return 0;
-	discr = strcmp(targa, r->targa);
+	}
+
+	discr = strncmp(targa, r->targa,LTARGA);
+
 	if (discr==0) {
 		return checkTime(r->lint, t);
-	} else if (discr<0)
-		return checkPerm(targa, t, r->left);
-	else
+	} else if (discr<0){
+		return checkPerm(targa, t, r->left);	
+	}
+	else{
 		return checkPerm(targa, t, r->right);
+	}
 }
 
 /**
