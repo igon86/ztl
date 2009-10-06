@@ -145,7 +145,7 @@ static void* worker(void* arg){
 	message_t request,response;
 	int result;
 
-	result = receiveMessage(*((channel_t *) arg),&request);
+	result = receiveMessage( (channel_t) arg,&request);
 
 	if(result == SEOF){
 		printf("PERMSERVER_WORKER: finito lo stream\n");
@@ -168,14 +168,13 @@ static void* worker(void* arg){
 	//checkPermesso ritorna direttamente il messaggio da inviare al client
 	response = checkPermesso(&request);
 
-	ec_meno1(result = sendMessage(*((channel_t *) arg),&response),"Problema nell'invio risposta");
+	ec_meno1(result = sendMessage( (channel_t) arg,&response),"Problema nell'invio risposta");
 
 	if(result == SEOF){
 		//gestione chiusura socket -> impossibile in questo caso vero?
 	}
 	
-	closeConnection((int) *((channel_t*) arg));
-	free(arg);
+	closeConnection((int) ((channel_t) arg) );
 	removeThread();
 	
 	pthread_exit((void*) NULL);
@@ -248,7 +247,7 @@ int main(int argc, char *argv[]){
 	/* server socket*/
 	serverChannel_t com;
 	/* socket da assegnare a un worker*/
-	channel_t* new;
+	channel_t new;
 	/* struttura dati per il salvataggio delle statistiche del file dei permessi*/
 	struct stat mod;
 
@@ -313,11 +312,10 @@ int main(int argc, char *argv[]){
 #endif	
 
 	while(working){
-		new = malloc(sizeof(channel_t));
 		//QUESTA E` DIVENTATA INUTILE
-		ec_meno1_c(*new = acceptConnection(com),"PERMSERVER_MAIN: problema nell'accettare una connessione",free(new);closeServer(file,tree,tid_writer,com));
+		ec_meno1_c(new = acceptConnection(com),"PERMSERVER_MAIN: problema nell'accettare una connessione",closeServer(file,tree,tid_writer,com));
 		
-		if(! (pthread_create(&tid_worker,NULL,worker,new) == 0) ){
+		if(! (pthread_create(&tid_worker,NULL,worker,(void*) new) == 0) ){
 #if DEBUG
 			printf("PERMSERVER: PROBLEMA NELLA CREAZIONE DI UN THREAD WORKER!!!\n");
 #endif	
