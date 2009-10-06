@@ -12,5 +12,8 @@
 	
 #define ec_null(s,m) \
 	if ( (s) == NULL ) { perror(m); exit(errno); }
+
+#define ec_non0(s,m) \
+	if ( (s) != 0 ) { perror(m); exit(errno); }
 	
 #endif /*MACRO_H_*/

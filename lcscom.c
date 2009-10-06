@@ -29,7 +29,10 @@ serverChannel_t createServerChannel ( const char* path ) {
 	serverChannel_t sck;
 	struct sockaddr_un sa;
 	
-	if ( path == 0 ) ERROR(EINVAL,-1)
+	if ( path == 0 ){
+		errno = EINVAL;
+		return -1;
+	}
 				
 	/*controllo che il nome della socket non ecceda UNIX_PATH_MAX. */
 	if ( strlen( path ) > UNIX_PATH_MAX )
@@ -70,8 +73,15 @@ int receiveMessage ( channel_t sc, message_t *msg ) {
 	
 	if ( ! msg )
 		ERROR(EINVAL,-1)
-				
+#if DEBUG
+	printf("sto per fare le stupide LEGGI\n");
+	fflush(stdout);
+#endif			
 	LEGGI( type, &, 1 ) 			/*leggo il tipo del messaggio. */
+#if DEBUG
+	printf("fatta una\n");
+	fflush(stdout);
+#endif	
 	LEGGI( length, &, sizeof(int) )		/*leggo la lunghezza del buffer. */
 				
 	if ( ! (msg->buffer = (char*)malloc ( msg->length )) )
@@ -104,7 +114,7 @@ int sendMessage ( channel_t sc, message_t *msg ) {
 
 
 int closeConnection ( channel_t sc ) {
-	return close ( sc );
+	return close( sc );
 }
 
 channel_t openConnection ( const char* path ) {
