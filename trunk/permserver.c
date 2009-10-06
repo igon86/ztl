@@ -148,7 +148,7 @@ static void* worker(void* arg){
 	result = receiveMessage( (channel_t) arg,&request);
 
 	if(result == SEOF){
-		printf("PERMSERVER_WORKER: finito lo stream\n");
+		printf("PERMSERVER_WORKER: nessun messaggio\n");
 		removeThread();
 		pthread_exit((void*) NULL);;
 	}
@@ -156,14 +156,11 @@ static void* worker(void* arg){
 		perror("E` successo sto bordellO: ");
 		exit(EXIT_FAILURE);
 	}
+
 #if DEBUG
 	printf("PERMSERVER_Worker: Ricevuto un %c su %s",request.type,request.buffer);
 #endif
 	
-
-	if(request.type != 'C'){
-		//gestione messaggio impossibile
-	}
 	
 	//checkPermesso ritorna direttamente il messaggio da inviare al client
 	response = checkPermesso(&request);
@@ -175,6 +172,8 @@ static void* worker(void* arg){
 	}
 	
 	closeConnection((int) ((channel_t) arg) );
+	free(request.buffer);
+	free(response.buffer);
 	removeThread();
 	
 	pthread_exit((void*) NULL);
@@ -312,7 +311,7 @@ int main(int argc, char *argv[]){
 #endif	
 
 	while(working){
-		//QUESTA E` DIVENTATA INUTILE
+
 		ec_meno1_c(new = acceptConnection(com),"PERMSERVER_MAIN: problema nell'accettare una connessione",closeServer(file,tree,tid_writer,com));
 		
 		if(! (pthread_create(&tid_worker,NULL,worker,(void*) new) == 0) ){
@@ -321,6 +320,7 @@ int main(int argc, char *argv[]){
 #endif	
 		}
 		else{
+			pthread_detach(tid_worker);
 			addThread();
 		}
 
