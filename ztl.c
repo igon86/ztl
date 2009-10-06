@@ -173,8 +173,11 @@ static void* worker(void* arg){
 #endif
 
         if(!validaTarga(s)){
+		free(arg);
                 fprintf(stderr,"ZTL: Problema nella targa di un passaggio letto da stdin\n");
-                exit(EXIT_FAILURE);
+                working = 0;
+		removeThread();
+		pthread_exit((void*) NULL);
         }
 
 #if DEBUG
@@ -185,8 +188,11 @@ static void* worker(void* arg){
         temp = s+LTARGA+1;
 
         if(!calcolaTime(temp,&tempo)){
-		fprintf(stderr,"Problema nellintervallo di un passaggio letto da stdin\n");
-                exit(EXIT_FAILURE);
+		free(arg);
+                fprintf(stderr,"ZTL: Problema nella targa di un passaggio letto da stdin\n");
+                working = 0;
+		removeThread();
+		pthread_exit((void*) NULL);
 	}
 
 #if DEBUG
@@ -246,7 +252,7 @@ static void* worker(void* arg){
 
 	if(results == -1 || results == SEOF){
 #if DEBUG
-		printf("ZTL: PERMESSO NON VALIDO (mi hanno chiuso non ho ricevuto risposta per %sNON DEVE SUCCEDERE CAZZO)\n",s);
+		printf("ZTL: PERMESSO NON VALIDO (mi hanno chiuso non ho ricevuto risposta per %s NON E` TROPPO CARINO)\n",s);
 #endif
 		pthread_mutex_lock(&mtxstack);
 
@@ -450,7 +456,7 @@ int main(int argc,char *argv[]){
 #if DEBUG	
         printf("STO PER FARE LA CLOSE CLIENT\n");
 #endif  
-	closeClient(tid_writer, fp); 
+	closeClient(tid_writer, fp);
 
 	return 0;
         

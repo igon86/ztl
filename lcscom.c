@@ -71,8 +71,9 @@ channel_t acceptConnection ( serverChannel_t s ) {
 int receiveMessage ( channel_t sc, message_t *msg ) {
 	int size;
 	
-	if ( ! msg )
+	if ( ! msg ){
 		ERROR(EINVAL,-1)
+	}
 #if DEBUG
 	printf("sto per fare le stupide LEGGI\n");
 	fflush(stdout);
@@ -84,9 +85,10 @@ int receiveMessage ( channel_t sc, message_t *msg ) {
 #endif	
 	LEGGI( length, &, sizeof(int) )		/*leggo la lunghezza del buffer. */
 				
-	if ( ! (msg->buffer = (char*)malloc ( msg->length )) )
+	if ( ! (msg->buffer = (char*)malloc ( msg->length )) ){
 		ERROR(ENOMEM,-1)
-	
+	}
+
 	LEGGI( buffer, ,msg->length )
 
 	return size;
