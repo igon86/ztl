@@ -10,7 +10,7 @@
 #include "intervals.h"
 #include "ilist.h"
 
-/**include aggiunto da me*/
+/**include aggiunto*/
 #include <stdio.h>
 
 

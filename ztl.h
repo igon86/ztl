@@ -1,20 +1,26 @@
-/**  
+/** 
 \file ztl.h
-\author Strutture dati del client
-\brief 
+\author	Andrea Lottarini
+\brief Strutture dati e funzioni del client dei permessi
  
-Strutture dati del client del programma ztl
-	
+Definizione delle strutture dati e delle funzioni del client dei permessi ZTL
+
 Si dichiara che il contenuto di questo file e` in ogni sua parte opera
 originale dell'autore.
-*/
+ */
 
-typedef struct
-{
-	/** targa veicolo */
-	char targa[LTARGA + 1];
- 	/** ora del passaggio*/
- 	time_t pass;
+#ifndef PERMSERVER_H_
+#define PERMSERVER_H_
 
-} permesso_t;
+#include "lcscom.h"
 
+#define LUNGPASSAGGIO 25
+
+typedef struct {
+  /** inizio intervallo di tempo */
+  channel_t com;
+  /** fine intervallo di tempo */
+  char[LUNGPASSAGGIO];
+} job_t;
+
+#endif

@@ -48,16 +48,27 @@ test-libztl.o: test-libztl.c intervals.h ptree.h ilist.h
 
 # make rule per gli altri .o (***DA COMPLETARE***)
 
+ztl: ztl.o lcscom.o istack.o
+	$(CC) -o $@ $^ -lpthread -L$(LIBDIR) -lztl
+
+ztl.o: ztl.c ztl.h ptree.h intervals.h ilist.h lcscom.h
+	$(CC) $(CFLAGS) -c $<
+
+permserver: permserver.o lcscom.o
+	$(CC) -o $@ $^ -lpthread -L$(LIBDIR) -lztl
+
+permserver.o: permserver.c permserver.h ptree.h intervals.h ilist.h lcscom.h
+	$(CC) $(CFLAGS) -c $<
+
 ptree.o: ptree.c ptree.h intervals.h ilist.h
 
 ilist.o: ilist.c ilist.h intervals.h
 
 intervals.o: intervals.c intervals.h
 
-#permserver.o: ptree.h
+lcscom.o: lcscom.c lcscom.h
 
-
-
+istack.o: istack.c istack.h intervals.h
 
 ########### NON MODIFICARE DA QUA IN POI ################
 # genera la documentazione con doxygen
@@ -66,7 +77,7 @@ docu: ../Doc/Doxyfile
 
 #ripulisce
 clean:
-	-rm -f *.o *.~
+	-rm -f *.o *.~ *~
 
 # test con main iniziale
 testiniziale: 

@@ -18,6 +18,8 @@ originale dell'autore.
 #include <string.h>
 #include <pthread.h>
 #include <sys/stat.h>
+#include <unistd.h>
+#include <mcheck.h>
 
 /* flag di terminazione dell'applicazione, viene settato a zero dagli handler dei segnali SIGTERM e SIGINT*/
 volatile sig_atomic_t working = 1;
@@ -27,7 +29,7 @@ nodo_t *tree=NULL;
 pthread_mutex_t mtxtree	= PTHREAD_MUTEX_INITIALIZER;
 
 /* numero di thread attivi e relativo semaforo*/
-int numThread = 0;
+static int numThread = 0;
 pthread_mutex_t mtxnumThread = PTHREAD_MUTEX_INITIALIZER;
 
 /* data di ultima modifica del file dei permessi*/
@@ -50,14 +52,17 @@ static void removeThread(){
 }
 
 /******************************************************************************************************
-					Funzioni thread worker
+					Funzione thread worker
 ******************************************************************************************************/
 
 static message_t checkPermesso(message_t* request){
+	/** risposta ottenuta dal server*/
 	message_t response;
-	//ASSUMO CHE MI ARRIVINO PERMESSI A GARBO!!! E SOLO MSG_CHK
+	/** campo targa nel MSG_CHK*/
 	char targa[LTARGA];
+	/**campo passaggio nel MSG_CHK*/
 	char* passaggio;
+	/** conversione del passaggio in time_t*/
 	time_t tempo;
 
  	strncpy(targa,request->buffer,7);
@@ -66,7 +71,8 @@ static message_t checkPermesso(message_t* request){
 	calcolaTime(passaggio,&tempo);
 
 	pthread_mutex_lock(&mtxtree);
-	
+
+	response.type = MSG_OK;
 	response.length = 0;
 	response.buffer = NULL;
 
@@ -76,6 +82,7 @@ static message_t checkPermesso(message_t* request){
 	else{
 		response.type = MSG_NO;	
 	}
+
 	pthread_mutex_unlock(&mtxtree);
 	return response;
 }
@@ -85,16 +92,21 @@ static message_t checkPermesso(message_t* request){
 ******************************************************************************************************/
 
 static void* writer(void* arg){
+	/** variabile locale per salvare le statistiche (data di ultima modifica) sul file dei permessi*/
 	struct stat mod;
+	/** riferimento al file da cui caricare l'albero dei permessi*/
 	FILE* file = NULL;
-	
+	/** riferimento al vecchio albero, utilizzato per invocare la free*/
+	nodo_t* temp;
+
+
+	file = fopen((char*) arg,"r");
 	while(working){
 		//aggiungere comando per mettere working a zero contestualmente alla scoperta dell'errore -> oppure la exit chiude tutto?
 		ec_meno1(stat((char*) arg,&mod),"problema nella lettura della data di modifica del file dei permessi");
-		file = fopen((char*) arg,"r");
 		if(mod.st_mtime > lastModified){
 #if DEBUG
-			printf("WRITE: RILEVATA MODIFICA\n");
+			printf("PERMSERVE_WRITER: RILEVATA MODIFICA....");
 			fflush(stdout);
 #endif
 			lastModified = mod.st_mtime;
@@ -102,15 +114,23 @@ static void* writer(void* arg){
 			/** aggiornamento dell'albero dei permessi */
 
 			pthread_mutex_lock(&mtxtree);
+			temp = tree;
+			tree=NULL;
 			ec_meno1(loadPerm(file,&tree),"problema nel caricamento dell'albero dei permessi");
 			pthread_mutex_unlock(&mtxtree);
+
+			freeTree(temp);
+#if DEBUG
+			printf("AGGIORNATO ALBERO \n");
+			fflush(stdout);
+#endif
 		}
 		sleep(NSEC);
 	}
 	
-	if(file) fclose(file);
+	fclose(file);
 #if DEBUG
-	printf("THREAD WRITER EXIT.....");
+	printf("PERMSERVER_WRITER EXIT.....");
 	fflush(stdout);
 #endif
 	pthread_exit((void*) NULL);
@@ -121,18 +141,26 @@ static void* writer(void* arg){
 ******************************************************************************************************/
 
 static void* worker(void* arg){
+	/** richiesta inviata al server e relativa risposta*/
 	message_t request,response;
 	int result;
-	
-	ec_meno1(result = receiveMessage(*((channel_t *) arg),&request),"Problema ricezione messaggio");
 
+	result = receiveMessage(*((channel_t *) arg),&request);
+
+	if(result == SEOF){
+		printf("PERMSERVER_WORKER: finito lo stream\n");
+		removeThread();
+		pthread_exit((void*) NULL);;
+	}
+	if(result == -1){
+		perror("E` successo sto bordellO: ");
+		exit(EXIT_FAILURE);
+	}
 #if DEBUG
-	printf("Worker: Ricevuto un %c su %s",request.type,request.buffer);
+	printf("PERMSERVER_Worker: Ricevuto un %c su %s",request.type,request.buffer);
 #endif
 	
-	if(result == SEOF){
-		//gestione chiusura socket -> ma non e` uguale a prima?
-	}
+
 	if(request.type != 'C'){
 		//gestione messaggio impossibile
 	}
@@ -146,25 +174,24 @@ static void* worker(void* arg){
 		//gestione chiusura socket -> impossibile in questo caso vero?
 	}
 	
+	closeConnection((int) *((channel_t*) arg));
+	free(arg);
 	removeThread();
 	
-	return 0;
+	pthread_exit((void*) NULL);
 }
 
 /******************************************************************************************************
-				Funzioni per la gestione dei segnali
+			Funzioni per la gestione dei segnali e terminazione
 ******************************************************************************************************/
 
 static void termina(){
-	write(1,"METTO WORKING A 0\n",18);
 	working=0;
 }
 
 static void closeServer(FILE* fp,nodo_t* tree,pthread_t tid_writer,serverChannel_t com){
-
+	/** variabile temporanea utilizzata per salvare lo stato dei thread e successivamente il loro numero*/
 	int status;
-
-	
 
 	/* Join sul writer */
 #if DEBUG
@@ -179,11 +206,29 @@ static void closeServer(FILE* fp,nodo_t* tree,pthread_t tid_writer,serverChannel
 	fflush(stdout);
 #endif
 
-	if(fp) close(fp);
-	if(tree) free(tree);
+	if(fp){
+#if DEBUG
+	printf("CHIUDO FILE\n");
+	fflush(stdout);
+#endif
+		fclose(fp);
+	}
+#if DEBUG
+	printf("FREE SULL'ALBERO\n");
+	fflush(stdout);
+#endif
+	freeTree(tree);
+
 	if(com){ 
 		close(com);
 		unlink(SOCKET);
+	}
+#if DEBUG
+	printf("ATTESA THREAD!\n");
+	fflush(stdout);
+#endif
+	while(numThread){
+		sleep(1);
 	}
 
 	exit(EXIT_SUCCESS);
@@ -203,11 +248,11 @@ int main(int argc, char *argv[]){
 	/* server socket*/
 	serverChannel_t com;
 	/* socket da assegnare a un worker*/
-	channel_t new,test;
+	channel_t* new;
 	/* struttura dati per il salvataggio delle statistiche del file dei permessi*/
 	struct stat mod;
-	int status;
-	
+
+	//mtrace();
 
 	/* Controllo numero argomenti */
 	if (argc!=2){
@@ -239,13 +284,14 @@ int main(int argc, char *argv[]){
 	
 #if DEBUG
 	printf("APERTURA FILE COMPLETATA\n");
+	
 #endif	
 
 
 	/*creazione della server socket*/
 	com = createServerChannel(SOCKET);
 	if ( com == -1 ){
-		fprintf(stderr,"problema nell'apertura della server socket\n");
+		fprintf(stderr,"PERMSERVER: problema nell'apertura della server socket\n");
 		exit(EXIT_FAILURE);
 	}
 	if ( com == SNAMETOOLONG ){ 
@@ -254,7 +300,7 @@ int main(int argc, char *argv[]){
 	}
 
 #if DEBUG
-	printf("SERVER SOCKET CREATA\n");
+	printf("PERMSERVER: SERVER SOCKET CREATA\n");
 #endif	
 
 	/*creazione thread writer*/
@@ -265,28 +311,25 @@ int main(int argc, char *argv[]){
 #if DEBUG
 	printf("THREAD WRITER CREATO\n");
 #endif	
-	
-	ec_meno1_c(test = acceptConnection(com),"problema nell'accettare una connessione",closeServer(file,tree,tid_writer,com));
-	
-#if DEBUG
-	printf("CONNESSIONE DI TEST AVVIATA\n");
-#endif	
-	while(working){
-		
-		ec_meno1_c(new = acceptConnection(com),"problema nell'accettare una connessione",closeServer(file,tree,tid_writer,com));
 
-		if(! (pthread_create(&tid_worker,NULL,worker,&new) == 0) ){
+	while(working){
+		new = malloc(sizeof(channel_t));
+		//QUESTA E` DIVENTATA INUTILE
+		ec_meno1_c(*new = acceptConnection(com),"PERMSERVER_MAIN: problema nell'accettare una connessione",free(new);closeServer(file,tree,tid_writer,com));
+		
+		if(! (pthread_create(&tid_worker,NULL,worker,new) == 0) ){
 #if DEBUG
-			printf("PROBLEMA NELLA CREAZIONE DI UN THREAD WORKER!!!\n");
+			printf("PERMSERVER: PROBLEMA NELLA CREAZIONE DI UN THREAD WORKER!!!\n");
 #endif	
 		}
 		else{
-			/* tutto e` andato a buon fine incremento il numero dei thread*/
 			addThread();
 		}
+
 	}
 	//qui working e` stato modificato quindi devo attendere la terminazione di tutti i worker + la terminazione del thread writer (con join esplicita)
 	
+	printf("PERMSERVER: STO USCENDO DAL MAIN LOOP");
 	closeServer(file,tree,tid_writer,com);
 
 	return 0;
