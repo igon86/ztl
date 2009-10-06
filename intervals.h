@@ -27,6 +27,8 @@
 #define LESTREMO 16
 /** Lunghezza di una stringa che rappesenta un permesso (targa + estremi intervallo)*/
 #define LRECORD (LTARGA+2*(LESTREMO)+1+1)
+/** Lunghezza di una stringa che rappresenta un passaggio (targa + data del passaggio)*/
+#define LPASSAGGIO 25
 
 /** Rappresentazione di un intervallo di tempo
 
@@ -48,9 +50,17 @@ typedef struct
   intervallo_t in;
 } permesso_t;
 
-void printIntervallo(intervallo_t in,char out[]);
-
 int compIntervalli(intervallo_t *a,intervallo_t *b);
+
+/** 
+Verifica che la stringa passata per argomento contenga una targa (nei primi 7 caratteri) 
+
+\param r stringa da verificare
+
+\retval 1 se la stringa rispetta il formato
+\retval 0 altrimenti
+*/
+int validaTarga(char r[]);
 
 /**
 Trasforma una stringa gg/mm/aaaa-hh:mm nella corrispondente
@@ -64,15 +74,19 @@ struct tm e quindi in un time_t
  */
 int calcolaTime(char *r, time_t * ret);
 
-/** 
-Verifica che la stringa passata per argomento contenga una targa (nei primi 7 caratteri) 
+/** Verifica la validita di un passaggio
 
-\param r stringa da verificare
+	XXXXXXX gg/mm/aaaa-hh:mm
 
-\retval 1 se la stringa rispetta il formato
-\retval 0 altrimenti
+	che rappresenta un passaggio del veicolo con targa XXXXXXX
+	alla data gg/mm/aaaa-hh:mm
+
+	\param r stringa da analizzare
+
+	\retval 1 se la stringa rappresenta un passaggio valido
+	\retval 0 altrimenti
 */
-int validaTarga(char r[]);
+int validaPassaggio(char r[]);
 
 /** Trasforma una stringa
 
@@ -88,8 +102,8 @@ int validaTarga(char r[]);
   \retval p (puntatore alla nuova struttura)
   \retval NULL se si e' verificato un errore (setta errno)
  */
-permesso_t* convertiRecord(char r[]);
 
+permesso_t* convertiRecord(char r[]);
 
 
 /** Trasforma una struttura di tipo permesso in una stringa r nel formato
