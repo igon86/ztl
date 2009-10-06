@@ -1,10 +1,20 @@
+/** 
+\file ztl.c
+\author	Andrea Lottarini
+\brief client dei permessi ZTL
+ 
+Implementazione delle funzionalita offerte dal client ZTL
+
+Si dichiara che il contenuto di questo file e` in ogni sua parte opera
+originale dell'autore.
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <signal.h>
 #include <string.h>
 #include <pthread.h>
 #include <unistd.h>
-#include <mcheck.h>
 
 #include "permserver.h"
 #include "macro.h"
@@ -15,17 +25,16 @@
 
 /* struttura dati di interazione thread worker/ thread writer e relativo semaforo/ condition variable*/
 static infr_t* stack = NULL;
-pthread_mutex_t mtxstack = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t empty = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t mtxstack = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t empty = PTHREAD_COND_INITIALIZER;
 
 /* numero di thread attivi e relativo semaforo*/
 static int numThread = 0;
-pthread_mutex_t mtxnumThread = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mtxnumThread = PTHREAD_MUTEX_INITIALIZER;
 
 #define MAXRETRY 5
-#define LUNGPASSAGGIO 25
 
-static int working = 1;
+static volatile sig_atomic_t working = 1;
 
 /******************************************************************************************************
 				Funzioni per la gestione dei thread
@@ -57,13 +66,13 @@ static void closeWorker(char* err,void* arg ){
 	pthread_exit((void*) NULL);
 }
 
-static void closeAndWrite(char* err,channel_t sock,void* arg,char* targa,char* passaggio){
+static void closeAndWrite(char* err,channel_t sock,void* arg){
 
 		fprintf(stderr,"%s",err);
 
 		pthread_mutex_lock(&mtxstack);
 
-		addInfrazione(&stack,targa,passaggio);
+		addInfrazione(&stack,arg);
 		pthread_cond_signal(&empty);
 
 		pthread_mutex_unlock(&mtxstack);
@@ -115,7 +124,6 @@ static void* writer(void* arg){
 	
 	infr_t* inf = NULL;
 	
-	//NON FUNZIONA SE: ESCO PER EOF su passaggi
 	while(working || testStack() ){
 		ec_non0(pthread_mutex_lock(&mtxstack),"Problema nell'eseguire la lock sullo stack");
 		if((inf = estraiInfrazione(&stack)) == NULL){
@@ -127,7 +135,7 @@ static void* writer(void* arg){
 			printf("ZTL_WRITER: Ho roba da scrivere\n");
 			fflush(stdout);
 #endif			
-			fprintf((FILE*) arg,"%s %s\n",inf->targa,inf->infrazione);
+			fprintf((FILE*) arg,"%s",inf->passaggio);
 			free(inf);
 			inf = NULL;
 		}
@@ -201,7 +209,7 @@ static void* worker(void* arg){
 #endif
 
         richiesta.type = MSG_CHECK;
-        richiesta.length = LUNGPASSAGGIO+1;
+        richiesta.length = LPASSAGGIO+1;
         richiesta.buffer = s;
 
 #if DEBUG
@@ -212,7 +220,7 @@ static void* worker(void* arg){
 	
 	if ( sock == -1 ){
 
-		closeAndWrite("ZTL_WORKER: problema nell'apertura della socket verso il server -> permesso non valido\n",sock,arg,s,temp);
+		closeAndWrite("ZTL_WORKER: problema nell'apertura della socket verso il server -> permesso non valido\n",sock,arg);
 
 	}
 	if ( sock == SNAMETOOLONG ){ 
@@ -233,7 +241,7 @@ static void* worker(void* arg){
 #endif
 		pthread_mutex_lock(&mtxstack);
 
-		addInfrazione(&stack,s,temp);
+		addInfrazione(&stack,s);
 		pthread_cond_signal(&empty);
 
 		pthread_mutex_unlock(&mtxstack);
@@ -256,7 +264,7 @@ static void* worker(void* arg){
 #endif
 		pthread_mutex_lock(&mtxstack);
 
-		addInfrazione(&stack,s,temp);
+		addInfrazione(&stack,s);
 		pthread_cond_signal(&empty);
 
 		pthread_mutex_unlock(&mtxstack);
@@ -271,7 +279,7 @@ static void* worker(void* arg){
                 printf("ZTL: PERMESSO NON VALIDO\n");
 		pthread_mutex_lock(&mtxstack);
 
-		addInfrazione(&stack,s,temp);
+		addInfrazione(&stack,s);
 		pthread_cond_signal(&empty);
 
 		pthread_mutex_unlock(&mtxstack);
@@ -361,7 +369,7 @@ static void closeClient(pthread_t tid_writer,FILE* fp){
 	printf("DONE!!");
 	fflush(stdout);
 #endif	
-	exit(EXIT_SUCCESS);
+
 }
 
 /******************************************************************************************************
@@ -420,9 +428,9 @@ int main(int argc,char *argv[]){
 
         while(working){
                 
-                ec_null(temp = (char*) malloc(LUNGPASSAGGIO+1),"Problema nell'allocazione della memoria");
+                ec_null(temp = (char*) malloc(LPASSAGGIO+1),"Problema nell'allocazione della memoria");
                 /* lettura di un passaggio dallo stdin*/
-                if(fread(temp,LUNGPASSAGGIO,1,stdin) == 0){
+                if(fread(temp,LPASSAGGIO,1,stdin) == 0){
 #if DEBUG	
                         printf("LETTO EOF 0 errore_> muoio male\n");
 #endif  
@@ -440,7 +448,7 @@ int main(int argc,char *argv[]){
 				exit(EXIT_FAILURE);
 			}
 		}
-		temp[LUNGPASSAGGIO]='\0';
+		temp[LPASSAGGIO]='\0';
                 /* passaggio del lavoro a un thread worker*/
                 if(! (pthread_create(&tid_worker,NULL,worker,temp) == 0) ){
 #if DEBUG	

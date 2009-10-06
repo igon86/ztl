@@ -19,36 +19,35 @@ originale dell'autore.
 #include <pthread.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <mcheck.h>
 
 /* flag di terminazione dell'applicazione, viene settato a zero dagli handler dei segnali SIGTERM e SIGINT*/
-volatile sig_atomic_t working = 1;
+static volatile sig_atomic_t working = 1;
 
 /* struttura dati per l'albero dei permessi e relativo mutex associato*/
-nodo_t *tree=NULL;
-pthread_mutex_t mtxtree	= PTHREAD_MUTEX_INITIALIZER;
+static nodo_t *tree=NULL;
+static pthread_mutex_t mtxtree	= PTHREAD_MUTEX_INITIALIZER;
 
 /* numero di thread attivi e relativo semaforo*/
 static int numThread = 0;
-pthread_mutex_t mtxnumThread = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mtxnumThread = PTHREAD_MUTEX_INITIALIZER;
 
 /* data di ultima modifica del file dei permessi*/
-time_t lastModified;
+static time_t lastModified;
 
 /******************************************************************************************************
 				Funzioni per la gestione dei thread
 ******************************************************************************************************/
 
 static void addThread(){
-	pthread_mutex_lock(&mtxnumThread);
+	ec_non0(pthread_mutex_lock(&mtxnumThread),"problema nell'eseguire la lock su mtxnumThread");
 	numThread++;
-	pthread_mutex_unlock(&mtxnumThread);
+	ec_non0(pthread_mutex_unlock(&mtxnumThread),"problema nell'eseguire la unlock su mtxnumThread");
 }
 
 static void removeThread(){
-	pthread_mutex_lock(&mtxnumThread);
+	ec_non0(pthread_mutex_lock(&mtxnumThread),"problema nell'eseguire la lock su mtxnumthread");
 	numThread--;
-	pthread_mutex_unlock(&mtxnumThread);
+	ec_non0(pthread_mutex_unlock(&mtxnumThread),"problema nell'eseguire la unlock su mtxnumthread");
 }
 
 /******************************************************************************************************
@@ -171,7 +170,7 @@ static void* worker(void* arg){
 		//gestione chiusura socket -> impossibile in questo caso vero?
 	}
 	
-	closeConnection((int) ((channel_t) arg) );
+	closeConnection( (channel_t) arg );
 	free(request.buffer);
 	free(response.buffer);
 	removeThread();

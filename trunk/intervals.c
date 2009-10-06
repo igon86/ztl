@@ -94,6 +94,17 @@ int calcolaTime(char *r, time_t * ret) {
 	return 1;
 }
 
+int validaPassaggio(char r[]){
+	time_t tempo;
+
+	if( validaTarga(r) && calcolaTime(r+LTARGA+1,&tempo)){
+		return 1;
+	}
+	else{
+		return 0;
+	}
+}
+
 /** Trasforma una stringa
 
  XXXXXXX gg/mm/aaaa-hh:mm gg/mm/aaaa-hh:mm
