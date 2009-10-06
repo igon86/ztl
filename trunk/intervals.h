@@ -39,10 +39,6 @@ typedef struct {
     time_t fine;
 } intervallo_t;
 
-void printIntervallo(intervallo_t in,char out[]);
-
-int compIntervalli(intervallo_t *a,intervallo_t *b);
-
 /** rappresentazione di un permesso ZTL come coppia targa intervallo */
 typedef struct
 {
@@ -51,6 +47,10 @@ typedef struct
   /** intervallo di tempo permesso*/
   intervallo_t in;
 } permesso_t;
+
+void printIntervallo(intervallo_t in,char out[]);
+
+int compIntervalli(intervallo_t *a,intervallo_t *b);
 
 /**
 Trasforma una stringa gg/mm/aaaa-hh:mm nella corrispondente

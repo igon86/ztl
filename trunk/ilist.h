@@ -7,7 +7,7 @@
 #ifndef __ILIST__H
 #define __ILIST__H
 
-/** include aggiunti da me*/
+/** include aggiunti*/
 #include "intervals.h"
 
 /** lista di intervalli */

@@ -81,12 +81,16 @@ int calcolaTime(char *r, time_t * ret) {
 	char *temp;
 	temp = strptime(r,"%d/%m/%Y-%H:%M",&bdt);
 	if((temp<r+LESTREMO)){
-	      /**la stptime non ha letto tutti i caratteri*/
-	      return 0;
+		printf("PROBLEMA NELLA STRPTIME DENTRO CALCOLA-TIME");
+	      	/**la stptime non ha letto tutti i caratteri*/
+	      	return 0;
 	}
 	bdt.tm_isdst=-1;
 	bdt.tm_sec=0;
 	*ret = mktime(&bdt);
+	if(*ret == -1){
+		printf("PROBLEMA NELLA MKTIME DENTRO CALCOLA-TIME");
+	}
 	return 1;
 }
 
