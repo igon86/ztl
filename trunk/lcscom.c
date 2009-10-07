@@ -117,14 +117,20 @@ int sendMessage(channel_t sc, message_t * msg)
 
     bytes = written = 0;
 
-    written = write(sc, &(msg->type), 1);
-    TESTWRITE(written, 1, bytes);
+    if ((written = write(sc, &(msg->type), 1)) < 1) {
+	return -1;
+    }
+    bytes += written;
 
-    written = write(sc, &(msg->length), sizeof(int));
-    TESTWRITE(written, sizeof(int), bytes);
+    if ((written = write(sc, &(msg->length), sizeof(int))) < sizeof(int)) {
+	return -1;
+    }
+    bytes += written;
 
-    written = write(sc, msg->buffer, msg->length);
-    TESTWRITE(written, msg->length, bytes);
+    if ((written = write(sc, msg->buffer, msg->length)) < msg->length) {
+	return -1;
+    }
+    bytes += written;
 
     return bytes;
 }
