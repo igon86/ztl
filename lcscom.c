@@ -21,124 +21,141 @@ originale dell'autore.
 
 #include "lcscom.h"
 
-#define ERROR(E,RET) { errno = E; return RET; }
-#define LEGGI(FIELD,E,DIM) if ( ( size = read ( sc, E(msg->FIELD), DIM ) ) == -1 ) return -1; if ( size != DIM ) return SEOF;
-#define SCRIVI(FIELD,DIM) if ( ( written = write ( sc, FIELD, DIM ) ) < DIM ) return -1; bytes += written;
+#define TESTREAD(R,DIM) \
+	if ( R == -1 ) return -1; \
+	if ( R != DIM ) return SEOF;
 
-serverChannel_t createServerChannel ( const char* path ) {
-	serverChannel_t sck;
-	struct sockaddr_un sa;
-	
-	if ( path == 0 ){
-		errno = EINVAL;
-		return -1;
-	}
-				
-	/*controllo che il nome della socket non ecceda UNIX_PATH_MAX. */
-	if ( strlen( path ) > UNIX_PATH_MAX )
-		ERROR(EINVAL,SNAMETOOLONG)
-	
-	/*inizializzo, in modo conforme alle specifiche, la struttura indirizzo. */
-	strncpy ( sa.sun_path, path, UNIX_PATH_MAX );
-	sa.sun_family = AF_UNIX;
-	if ( (sck = socket ( AF_UNIX, SOCK_STREAM, 0)) == -1 ) 
-		return -1; /*errore creazione socket. errno gia' settato. */
-	
-	if ( bind ( sck,(struct sockaddr *)&sa, sizeof(sa) ) == - 1) {
-		close ( sck );
-		return -1;
-	}
-	/*accetto un massimo di SOMAXCONN connessioni. */
-	if ( listen ( sck, SOMAXCONN ) == -1 ) {
-		close ( sck );
-		return -1;
-	}
-	
-	return sck;
+#define TESTARG(A) \
+	if ( !A ) { errno = EINVAL; return -1;}
+
+#define TESTWRITE(W,DIM,B) \
+	if ( W != DIM ) {return -1;} B +=W;
+
+serverChannel_t createServerChannel(const char *path)
+{
+    serverChannel_t sck;
+    struct sockaddr_un sa;
+
+    TESTARG(path);
+
+    /* controllo che il nome della socket non sia maggiore di UNIX_PATH_MAX */
+    if (strlen(path) > UNIX_PATH_MAX) {
+	errno = EINVAL;
+	return SNAMETOOLONG;
+    }
+
+    /* inizializzo la struct indirizzo */
+    strncpy(sa.sun_path, path, UNIX_PATH_MAX);
+    sa.sun_family = AF_UNIX;
+    if ((sck = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+	return -1;
+    }
+
+    /* binding della socket */
+    if (bind(sck, (struct sockaddr *) &sa, sizeof(sa)) == -1) {
+	close(sck);
+	return -1;
+    }
+
+    /* imposto il limite di connessioni */
+    if (listen(sck, SOMAXCONN) == -1) {
+	close(sck);
+	return -1;
+    }
+
+    return sck;
 }
 
-int closeSocket ( serverChannel_t s ) {
-	unlink ( "./tmp/permsock" );
-	return close ( s );
+int closeSocket(serverChannel_t s)
+{
+    unlink("./tmp/permsock");
+    return close(s);
 }
 
-channel_t acceptConnection ( serverChannel_t s ) {
-	return accept ( s, NULL, 0 );
-}
-
-
-
-int receiveMessage ( channel_t sc, message_t *msg ) {
-	int size;
-	
-	if ( ! msg ){
-		ERROR(EINVAL,-1)
-	}
-#if DEBUG
-	printf("sto per fare le stupide LEGGI\n");
-	fflush(stdout);
-#endif			
-	LEGGI( type, &, 1 ) 			/*leggo il tipo del messaggio. */
-#if DEBUG
-	printf("fatta una\n");
-	fflush(stdout);
-#endif	
-	LEGGI( length, &, sizeof(int) )		/*leggo la lunghezza del buffer. */
-				
-	if ( ! (msg->buffer = (char*)malloc ( msg->length )) ){
-		ERROR(ENOMEM,-1)
-	}
-
-	LEGGI( buffer, ,msg->length )
-
-	return size;
+channel_t acceptConnection(serverChannel_t s)
+{
+    return accept(s, NULL, 0);
 }
 
 
 
-int sendMessage ( channel_t sc, message_t *msg ) {
-	int bytes, written;
+int receiveMessage(channel_t sc, message_t * msg)
+{
+    int red;
 
-	if ( ! msg )
-		ERROR(EINVAL,-1)
-	
-	bytes = written = 0;				
-	
-	/*scrivo il tipo del messagio. */
-	SCRIVI ( &(msg->type), 1 )		
-	/*scrivo la lunghezza del buffer. */	
-	SCRIVI ( &(msg->length), sizeof(int) )	
-	/*scrivo i caratteri del buffer. */	
-	SCRIVI ( msg->buffer, msg->length )		
+    TESTARG(msg);
 
-	return bytes;
+    /* leggo il tipo del messaggio */
+    red = read(sc, &(msg->type), 1);
+
+    TESTREAD(red, 1);
+
+    /* leggo la lunghezza del buffer */
+    red = read(sc, &(msg->length), sizeof(int));
+
+    TESTREAD(red, sizeof(int));
+
+    if (!(msg->buffer = (char *) malloc(msg->length))) {
+	errno = ENOMEM;
+	return -1;
+    }
+
+    red = read(sc, (msg->buffer), msg->length);
+
+    TESTREAD(red, msg->length);
+
+    return red;
 }
 
 
-int closeConnection ( channel_t sc ) {
-	return close( sc );
+
+int sendMessage(channel_t sc, message_t * msg)
+{
+    int bytes, written;
+
+    TESTARG(msg);
+
+    bytes = written = 0;
+
+    written = write(sc, &(msg->type), 1);
+    TESTWRITE(written, 1, bytes);
+
+    written = write(sc, &(msg->length), sizeof(int));
+    TESTWRITE(written, sizeof(int), bytes);
+
+    written = write(sc, msg->buffer, msg->length);
+    TESTWRITE(written, msg->length, bytes);
+
+    return bytes;
 }
 
-channel_t openConnection ( const char* path ) {
-	channel_t sck;
-	struct sockaddr_un sa;
-	
-	if ( ! path )
-		ERROR(EINVAL,-1)
-				
-	/*controllo che il nome della socket non ecceda UNIX_PATH_MAX. */
-	if ( strlen( path ) > UNIX_PATH_MAX )
-		ERROR(EINVAL,SNAMETOOLONG)
-	
-	/*inizializzazione della struct indirizzo. */
-	strncpy ( sa.sun_path, path, UNIX_PATH_MAX );
-	sa.sun_family = AF_UNIX;
-	
-	sck = socket ( AF_UNIX, SOCK_STREAM, 0 );
-	if ( connect ( sck, (struct sockaddr*) &sa, sizeof(sa) ) == -1 ) {
-		close ( sck );
-		return -1;
-	}
-	
-	return sck;
+
+int closeConnection(channel_t sc)
+{
+    return close(sc);
+}
+
+channel_t openConnection(const char *path)
+{
+    channel_t sck;
+    struct sockaddr_un sa;
+
+    TESTARG(path);
+
+    if (strlen(path) > UNIX_PATH_MAX) {
+	errno = EINVAL;
+	return SNAMETOOLONG;
+    }
+
+
+    strncpy(sa.sun_path, path, UNIX_PATH_MAX);
+    sa.sun_family = AF_UNIX;
+
+    sck = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (connect(sck, (struct sockaddr *) &sa, sizeof(sa)) == -1) {
+	close(sck);
+	return -1;
+    }
+
+    return sck;
 }

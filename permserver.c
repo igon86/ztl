@@ -9,22 +9,23 @@ Si dichiara che il contenuto di questo file e` in ogni sua parte opera
 originale dell'autore.
  */
 
-#include "ptree.h"
-#include "lcscom.h"
-#include "permserver.h"
-#include "macro.h"
-
 #include <signal.h>
 #include <string.h>
 #include <pthread.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "ptree.h"
+#include "lcscom.h"
+#include "permserver.h"
+#include "macro.h"
+
+
 /* flag di terminazione dell'applicazione, viene settato a zero dagli handler dei segnali SIGTERM e SIGINT*/
 static volatile sig_atomic_t working = 1;
 
 /* struttura dati per l'albero dei permessi e relativo mutex associato*/
-static nodo_t *tree=NULL;
+static nodo_t *tree;
 static pthread_mutex_t mtxtree	= PTHREAD_MUTEX_INITIALIZER;
 
 /* numero di thread attivi e relativo semaforo*/
@@ -217,7 +218,7 @@ static void closeServer(FILE* fp,nodo_t* tree,pthread_t tid_writer,serverChannel
 	freeTree(tree);
 
 	if(com){ 
-		close(com);
+		closeSocket(com);
 		unlink(SOCKET);
 	}
 #if DEBUG
