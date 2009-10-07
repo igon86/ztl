@@ -411,7 +411,7 @@ int main(int argc,char *argv[]){
         ec_meno1(sigaction ( SIGPIPE, &pipe, NULL ),"problema nell'installazione del gestore di SIGPIPE");
 
         /* connessione con il server*/
-        ec_meno1(connessione = connetti(),"Problema nella connessione al server\n");
+        ec_meno1(connessione = connetti(),"ZTL: Problema nella connessione al server\n");
 	/* la socket e` solo di prova, la chiudo immediatamente*/
 	close(connessione);
 
