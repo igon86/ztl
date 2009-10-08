@@ -113,6 +113,7 @@ static int testStack(){
 #endif
 	return ret;
 }
+
 /**
 Thread writer del client ZTL.
 
@@ -126,26 +127,18 @@ static void* writer(void* arg){
 	infr_t* inf = NULL;
 	
 	while(working || testStack() ){
+
 		ec_non0(pthread_mutex_lock(&mtxstack),"Problema nell'eseguire la lock sullo stack");
+
 		if((inf = estraiInfrazione(&stack)) == NULL){
-			printf("ZTL_WRITER: MI BLOCCO\n");
 			pthread_cond_wait(&empty,&mtxstack);
 		}
-		if(inf){
-#if DEBUG
-			printf("ZTL_WRITER: Ho roba da scrivere\n");
-			fflush(stdout);
-#endif			
+		if(inf){		
 			fprintf((FILE*) arg,"%s",inf->passaggio);
 			free(inf);
 			inf = NULL;
 		}
-		else{
-#if DEBUG
-			printf("ZTL_WRITER:  sveglia fasulla\n");
-			fflush(stdout);
-#endif
-		}
+
 		pthread_mutex_unlock(&mtxstack);
 		
 	}
@@ -216,6 +209,7 @@ static void* worker(void* arg){
 		
 	}
 
+	/* verifico la validita` del permesso*/
         if(risposta.type == MSG_OK ){
                 printf("ZTL: PERMESSO VALIDO\n");
         }
@@ -278,6 +272,7 @@ static void termina(){
         working=0;
 }
 
+/* funzione di pulizia delle strutture dati del processo ZTL*/
 static void closeClient(pthread_t tid_writer,FILE* fp){
 	
 	/* Attendo la terminazione di tutti i thread worker*/
