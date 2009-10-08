@@ -17,8 +17,6 @@ originale dell'autore.
 
 #include "intervals.h"
 
-
-
 /**
 Confronta 2 intervalli
 
@@ -81,26 +79,27 @@ int calcolaTime(char *r, time_t * ret) {
 	char *temp;
 	temp = strptime(r,"%d/%m/%Y-%H:%M",&bdt);
 	if((temp<r+LESTREMO)){
-		printf("PROBLEMA NELLA STRPTIME DENTRO CALCOLA-TIME");
 	      	/**la stptime non ha letto tutti i caratteri*/
 	      	return 0;
 	}
 	bdt.tm_isdst=-1;
 	bdt.tm_sec=0;
 	*ret = mktime(&bdt);
-	if(*ret == -1){
-		printf("PROBLEMA NELLA MKTIME DENTRO CALCOLA-TIME");
-	}
+
 	return 1;
 }
 
 int validaPassaggio(char r[]){
 	time_t tempo;
 
+	printf("CHIAMATA LA VALIDA PASSAGGIO....");
+
 	if( validaTarga(r) && calcolaTime(r+LTARGA+1,&tempo)){
+		printf("OK!\n");
 		return 1;
 	}
 	else{
+		printf("FALLITA\n");
 		return 0;
 	}
 }
@@ -187,20 +186,20 @@ int convertiPermesso(permesso_t* pp, char r[]) {
 	r=r+LTARGA;
 	localtime_r(&(pp->in.inizio),&temp);
 	sprintf(r, " " FORMATO_TIME, temp.tm_mday, temp.tm_mon+1,
-			temp.tm_year+1900, temp.tm_hour, temp.tm_min);
+			temp.tm_year+STARTING_YEAR, temp.tm_hour, temp.tm_min);
 	r =r + LESTREMO+1;
 	localtime_r(&(pp->in.fine),&temp);
 	sprintf(r, " " FORMATO_TIME, temp.tm_mday, temp.tm_mon+1,
-			temp.tm_year+1900, temp.tm_hour, temp.tm_min);
+			temp.tm_year+STARTING_YEAR, temp.tm_hour, temp.tm_min);
 	r =r + LESTREMO+1;
 	*r='\0';
 	return 0;
 }
-/**metodo custom per comporre una stampa di un intervallo*/
+/**metodo per comporre una stampa di un intervallo
 
-/** Effettua la stampa su stdout di un intervallo in formato ctime/ctime_r
+Effettua la stampa su stdout di un intervallo in formato ctime/ctime_r
 
- \param inter l'intervallo da stampare
+\param inter l'intervallo da stampare
  */
 void stampaIntervallo(intervallo_t* inter) {
 	char inizio[CTIMELENGTH];

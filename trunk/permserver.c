@@ -183,13 +183,54 @@ static void* worker(void* arg){
 			Funzioni per la gestione dei segnali e terminazione
 ******************************************************************************************************/
 
+/* funzione eseguita come gestione del segnale SIGINT e SIGTERM*/
 static void termina(){
 	working=0;
 }
 
+/* funzione per l'installazione dei gestori dei segnali */
+static int handle_signals(void) {
+	
+	/* maschera per l'installazione degli handler dei segnali*/
+	sigset_t set;
+	/* strutture dati per la gestione dei segnali*/
+	struct sigaction term, pipe;
+
+	/* assegno una maschera temporanea*/
+	ec_meno1(sigfillset(&set),"Problema nell'inizializzazione della maschera segnali\n");
+	ec_meno1(sigprocmask(SIG_SETMASK,&set,NULL),"Problema nell'assegnazione maschera ai segnali\n");
+
+	/* installazione del gestore di SIGTERM e SIGINT*/
+	bzero(&term,sizeof(term));
+	term.sa_handler = termina;
+	
+	ec_meno1(sigaction ( SIGTERM, &term, NULL ), "problema nell'installazione del gestore di SIGTERM");
+	ec_meno1(sigaction ( SIGINT, &term, NULL ), "problema nell'installazione del gestore di SIGINT");	
+	
+	/* installazione del gestore di SIGPIPE*/
+	bzero(&pipe,sizeof(pipe));
+	pipe.sa_handler = SIG_IGN;
+	
+	ec_meno1(sigaction ( SIGPIPE, &pipe, NULL ),"problema nell'installazione del gestore di SIGPIPE");
+	
+	/* tolgo la maschera*/
+	ec_meno1(sigemptyset(&set),"Problema nella creazione della maschera finale\n");
+	ec_meno1(sigprocmask(SIG_SETMASK,&set,NULL),"Problema nella rimozione della maschera segnali\n");
+
+	return 0;
+}
+
+/* funzione di pulizia delle strutture dati associare al server*/
 static void closeServer(FILE* fp,nodo_t* tree,pthread_t tid_writer,serverChannel_t com){
 	/** variabile temporanea utilizzata per salvare lo stato dei thread e successivamente il loro numero*/
 	int status;
+
+	if(errno == 0 || errno == EINTR){
+		status = true;
+	}
+	else{
+		status = false;
+	}
 
 	/* Join sul writer */
 #if DEBUG
@@ -197,7 +238,7 @@ static void closeServer(FILE* fp,nodo_t* tree,pthread_t tid_writer,serverChannel
 	fflush(stdout);
 #endif
 
-	pthread_join(tid_writer,(void*) &status);
+	pthread_join(tid_writer,NULL);
 
 #if DEBUG
 	printf("COMPLETATA!\n");
@@ -228,8 +269,14 @@ static void closeServer(FILE* fp,nodo_t* tree,pthread_t tid_writer,serverChannel
 	while(numThread){
 		sleep(1);
 	}
+	
+	if(status){
+		exit(EXIT_SUCCESS);
+	}
+	else{
+		exit(EXIT_FAILURE);
+	}
 
-	exit(EXIT_SUCCESS);
 }
 
 /******************************************************************************************************
@@ -238,8 +285,6 @@ static void closeServer(FILE* fp,nodo_t* tree,pthread_t tid_writer,serverChannel
 
 int main(int argc, char *argv[]){
 	
-	/* strutture dati per la gestione dei segnali*/
-	struct sigaction term, pipe;
 	FILE* file;
 	/* id unico del thread writer e id dell'ultimo thred worker creato*/
 	pthread_t tid_writer,tid_worker;
@@ -250,28 +295,15 @@ int main(int argc, char *argv[]){
 	/* struttura dati per il salvataggio delle statistiche del file dei permessi*/
 	struct stat mod;
 
-	//mtrace();
-
 	/* Controllo numero argomenti */
 	if (argc!=2){
 		fprintf(stderr,"Numero parametri invalido\n");
 		exit(EXIT_FAILURE);
 	}
 
-
-
-	/* installazione del gestore di SIGTERM e SIGINT*/
-	bzero(&term,sizeof(term));
-	term.sa_handler = termina;
+	/* inizializzazione handler segnali*/
+	(void) handle_signals();
 	
-	ec_meno1(sigaction ( SIGTERM, &term, NULL ), "problema nell'installazione del gestore di SIGTERM");
-	ec_meno1(sigaction ( SIGINT, &term, NULL ), "problema nell'installazione del gestore di SIGINT");	
-	
-	/* installazione del gestore di SIGPIPE*/
-	bzero(&pipe,sizeof(pipe));
-	pipe.sa_handler = SIG_IGN;
-	
-	ec_meno1(sigaction ( SIGPIPE, &pipe, NULL ),"problema nell'installazione del gestore di SIGPIPE");
 
 	/*primo caricamento albero dei permessi*/
 	ec_meno1(stat(argv[1],&mod),"problema nella lettura della data di modifica del file dei permessi");
@@ -279,15 +311,11 @@ int main(int argc, char *argv[]){
 
 	ec_null(file = fopen(argv[1],"r"),"problema nell'apertura del file dei permessi");
 	ec_meno1(loadPerm(file,&tree),"problema nel caricamento dell'albero dei permessi");
-	
-#if DEBUG
-	printf("APERTURA FILE COMPLETATA\n");
-	
-#endif	
 
 
 	/*creazione della server socket*/
 	com = createServerChannel(SOCKET);
+
 	if ( com == -1 ){
 		fprintf(stderr,"PERMSERVER: problema nell'apertura della server socket\n");
 		exit(EXIT_FAILURE);
@@ -297,37 +325,23 @@ int main(int argc, char *argv[]){
 		exit(EXIT_FAILURE);
 	}
 
-#if DEBUG
-	printf("PERMSERVER: SERVER SOCKET CREATA\n");
-#endif	
-
 	/*creazione thread writer*/
-	if(! (pthread_create(&tid_writer,NULL,writer,argv[1]) == 0) ){
-		//gestione errore creazione thread writer
-	}
-
-#if DEBUG
-	printf("THREAD WRITER CREATO\n");
-#endif	
+	ec_non0_c(pthread_create(&tid_writer,NULL,writer,argv[1]),"Problema nella creazione del thread writer",closeServer(file,tree,tid_writer,com));
 
 	while(working){
 
-		ec_meno1_c(new = acceptConnection(com),"PERMSERVER_MAIN: problema nell'accettare una connessione",closeServer(file,tree,tid_writer,com));
-		
-		if(! (pthread_create(&tid_worker,NULL,worker,(void*) new) == 0) ){
-#if DEBUG
-			printf("PERMSERVER: PROBLEMA NELLA CREAZIONE DI UN THREAD WORKER!!!\n");
-#endif	
-		}
-		else{
-			pthread_detach(tid_worker);
-			addThread();
-		}
+		ec_meno1_c(new = acceptConnection(com), "PERMSERVER: problema nell'accettare una nuova connessione",closeServer(file,tree,tid_writer,com));
+
+		ec_non0_c(pthread_create(&tid_worker,NULL,worker,(void*) new) , "PERMSERVER: Problema nel creare un nuovo thread\n",closeServer(file,tree,tid_writer,com));
+
+		ec_non0_c(pthread_detach(tid_worker), "PERMSERVER: Problema nell'eseguire la detach su un nuovo thread\n",closeServer(file,tree,tid_writer,com));
+
+		addThread();
 
 	}
-	//qui working e` stato modificato quindi devo attendere la terminazione di tutti i worker + la terminazione del thread writer (con join esplicita)
 	
-	printf("PERMSERVER: STO USCENDO DAL MAIN LOOP");
+	/* setto errno per il test in closeServer*/
+	errno=0;
 	closeServer(file,tree,tid_writer,com);
 
 	return 0;

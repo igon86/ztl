@@ -169,40 +169,17 @@ datti condivisa di tipo istack
 static void* worker(void* arg){
 
         message_t richiesta,risposta;
-        char targa[LTARGA];
-        char* temp;
-        time_t tempo;
         channel_t sock;
 	char* s = (char*) arg;
 
-#if DEBUG
-        printf("ZTL_WORKER: Sto analizzando: %s",s);
-        //if(s[LUNGPASSAGGIO-1] == '\n') printf("FORMATO GIA A POSTO");
-#endif
 
-        if(!validaTarga(s)){
+	if(! validaPassaggio(s)){
 		free(arg);
-                fprintf(stderr,"ZTL: Problema nella targa di un passaggio letto da stdin\n");
-                working = 0;
-		removeThread();
-		pthread_exit((void*) NULL);
-        }
-
-#if DEBUG
-        printf(".");
-#endif
-
-        strncpy(targa,s,7);
-        temp = s+LTARGA+1;
-
-        if(!calcolaTime(temp,&tempo)){
-		free(arg);
-                fprintf(stderr,"ZTL: Problema nella targa di un passaggio letto da stdin\n");
+                fprintf(stderr,"ZTL: Problema in un passaggio letto da stdin\n");
                 working = 0;
 		removeThread();
 		pthread_exit((void*) NULL);
 	}
-
 #if DEBUG
         printf(".");
         fflush(stdout);
@@ -219,9 +196,7 @@ static void* worker(void* arg){
         sock = openConnection(SOCKET);
 	
 	if ( sock == -1 ){
-
 		closeAndWrite("ZTL_WORKER: problema nell'apertura della socket verso il server -> permesso non valido\n",sock,arg);
-
 	}
 	if ( sock == SNAMETOOLONG ){ 
 		fprintf(stderr,"il pathname della socket e' troppo lungo\n");
