@@ -32,4 +32,7 @@ typedef int bool;
 #define ec_non0(s,m) \
 	if ( (s) != 0 ) { perror(m); exit(errno); }
 	
+#define ec_non0_c(s,m,c) \
+	if ( (s) != 0 ) { perror(m); c; }
+
 #endif /*MACRO_H_*/

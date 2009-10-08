@@ -30,6 +30,8 @@
 /** Lunghezza di una stringa che rappresenta un passaggio (targa + data del passaggio)*/
 #define LPASSAGGIO 25
 
+#define STARTING_YEAR 1900
+
 /** Rappresentazione di un intervallo di tempo
 
 per il tipo 'time_t' vedi "man asctime". L'inizio e la fine sono compresi fra il 01/01/200 ed il 01/01/2020 */
