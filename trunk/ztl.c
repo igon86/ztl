@@ -78,8 +78,9 @@ static void closeAndWrite(char* err,channel_t sock,void* arg){
 		pthread_mutex_unlock(&mtxstack);
 
 		/** pulizia*/
-
-		closeConnection(sock);
+		if (sock != -1){
+			closeConnection(sock);
+		}
 		free(arg);
 
 		removeThread();	
@@ -148,7 +149,6 @@ static void* writer(void* arg){
 		pthread_mutex_unlock(&mtxstack);
 		
 	}
-	printf("ZTL_WRITER: EXITING THE LOOP\n");
 
 	pthread_exit((void*) NULL);
 }
@@ -171,8 +171,9 @@ static void* worker(void* arg){
         message_t richiesta,risposta;
         channel_t sock;
 	char* s = (char*) arg;
+	int results;
 
-
+	/* verifico il passaggio letto*/
 	if(! validaPassaggio(s)){
 		free(arg);
                 fprintf(stderr,"ZTL: Problema in un passaggio letto da stdin\n");
@@ -180,19 +181,13 @@ static void* worker(void* arg){
 		removeThread();
 		pthread_exit((void*) NULL);
 	}
-#if DEBUG
-        printf(".");
-        fflush(stdout);
-#endif
 
+	/*inizializzo la struttura richiesta*/
         richiesta.type = MSG_CHECK;
         richiesta.length = LPASSAGGIO+1;
         richiesta.buffer = s;
-
-#if DEBUG
-        printf(".");
-#endif
         
+	/* Apro la socket verso il server*/
         sock = openConnection(SOCKET);
 	
 	if ( sock == -1 ){
@@ -202,49 +197,23 @@ static void* worker(void* arg){
 		fprintf(stderr,"il pathname della socket e' troppo lungo\n");
 		exit(EXIT_FAILURE);
 	}
-#if DEBUG
-        printf(".");
-        fflush(stdout);
-#endif
-	int results;
 
+	/* invio la richiesta al server*/
         results = sendMessage(sock, &richiesta);
 	
 	if(results == -1 || results == SEOF){
-#if DEBUG
-		printf("ZTL: PERMESSO NON VALIDO (mi hanno chiuso non ho inviato la richiesta)\n");
-#endif
-		pthread_mutex_lock(&mtxstack);
 
-		addInfrazione(&stack,s);
-		pthread_cond_signal(&empty);
-
-		pthread_mutex_unlock(&mtxstack);
-		closeConnection(sock);
-		free(arg);
-
-		removeThread();
-		return NULL;
+		closeAndWrite("ZTL_WORKER: problema nell'invio della richiesta al server -> permesso non valido\n",sock,arg);
+		
 	}
 
-#if DEBUG
-        printf("...INVIATA RICHIESTA\n");
-#endif
-
+	/* ricevo la risposta*/
         results = receiveMessage(sock, &risposta);
 
 	if(results == -1 || results == SEOF){
-#if DEBUG
-		printf("ZTL: PERMESSO NON VALIDO (mi hanno chiuso non ho ricevuto risposta per %s NON E` TROPPO CARINO)\n",s);
-#endif
-		pthread_mutex_lock(&mtxstack);
 
-		addInfrazione(&stack,s);
-		pthread_cond_signal(&empty);
-
-		pthread_mutex_unlock(&mtxstack);
-		removeThread();
-		return NULL;
+		closeAndWrite("ZTL_WORKER: problema nella ricezione della risposta dal server -> permesso non valido\n",sock,arg);
+		
 	}
 
         if(risposta.type == MSG_OK ){
@@ -311,39 +280,21 @@ static void termina(){
 
 static void closeClient(pthread_t tid_writer,FILE* fp){
 	
-	int status;
-
-	/* Join sul writer */
-#if DEBUG
-	printf("WAITING FOR THREADS");
-	fflush(stdout);
-#endif	
+	/* Attendo la terminazione di tutti i thread worker*/
 	while(numThread){
 		sleep(1);
 	}
-#if DEBUG
-	printf("JOIN THREAD WRITER...");
-	fflush(stdout);
-#endif
+
+	/* Join sul writer */
 	pthread_mutex_lock(&mtxstack);
-#if DEBUG
-	printf("...SVEGLIANDO... :)");
-	fflush(stdout);
-#endif
+	/* si manda un segnale di modo che il writer si renda conto che le richieste da servire sono terminate*/
 	pthread_cond_signal(&empty);
 	pthread_mutex_unlock(&mtxstack);
-#if DEBUG
-	printf("MANDATA LA SVEGLIA");
-	fflush(stdout);
-#endif
-	pthread_join(tid_writer,(void*) &status);
+
+	pthread_join(tid_writer,NULL);
 
 	
-	fclose(fp);
-#if DEBUG
-	printf("DONE!!");
-	fflush(stdout);
-#endif	
+	fclose(fp);	
 
 }
 
