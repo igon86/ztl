@@ -24,7 +24,7 @@ originale dell'autore.
 #include "ztl.h"
 
 /* struttura dati di interazione thread worker/ thread writer e relativo semaforo/ condition variable*/
-static infr_t* stack = NULL;
+static infr_t *stack = NULL;
 static pthread_mutex_t mtxstack = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t empty = PTHREAD_COND_INITIALIZER;
 
@@ -40,52 +40,60 @@ static volatile sig_atomic_t working = 1;
 				Funzioni per la gestione dei thread
 ******************************************************************************************************/
 
-static void addThread(){
-	ec_non0( pthread_mutex_lock(&mtxnumThread) ,"Problema nell'eseguire la lock su mtxnumThread");
+static void addThread()
+{
+    ec_non0(pthread_mutex_lock(&mtxnumThread),
+	    "Problema nell'eseguire la lock su mtxnumThread");
 
-	numThread++;
+    numThread++;
 
-	ec_non0( pthread_mutex_unlock(&mtxnumThread) ,"Problema nell'eseguire la unlock su mtxnumThread");
+    ec_non0(pthread_mutex_unlock(&mtxnumThread),
+	    "Problema nell'eseguire la unlock su mtxnumThread");
 }
 
-static void removeThread(){
-	ec_non0( pthread_mutex_lock(&mtxnumThread) ,"Problema nell'eseguire la lock su mtxnumThread");
+static void removeThread()
+{
+    ec_non0(pthread_mutex_lock(&mtxnumThread),
+	    "Problema nell'eseguire la lock su mtxnumThread");
 
-	numThread--;
+    numThread--;
 
-	ec_non0( pthread_mutex_unlock(&mtxnumThread) ,"Problema nell'eseguire la unlock su mtxnumThread");
+    ec_non0(pthread_mutex_unlock(&mtxnumThread),
+	    "Problema nell'eseguire la unlock su mtxnumThread");
 }
 
-static void closeWorker(char* err,void* arg ){
+static void closeWorker(char *err, void *arg)
+{
 
-	fprintf(stderr,"%s",err);
+    fprintf(stderr, "%s", err);
 
-	free(arg);
-	removeThread();
+    free(arg);
+    removeThread();
 
-	pthread_exit((void*) NULL);
+    pthread_exit((void *) NULL);
 }
 
-static void closeAndWrite(char* err,channel_t sock,void* arg){
+static void closeAndWrite(char *err, channel_t sock, void *arg)
+{
 
-		fprintf(stderr,"%s",err);
+    fprintf(stderr, "%s", err);
 
-		pthread_mutex_lock(&mtxstack);
+    pthread_mutex_lock(&mtxstack);
 
-		addInfrazione(&stack,arg);
-		pthread_cond_signal(&empty);
+    addInfrazione(&stack, arg);
+    pthread_cond_signal(&empty);
 
-		pthread_mutex_unlock(&mtxstack);
+    pthread_mutex_unlock(&mtxstack);
 
 		/** pulizia*/
-		if (sock != -1){
-			closeConnection(sock);
-		}
-		free(arg);
+    if (sock != -1) {
+	closeConnection(sock);
+    }
+    free(arg);
 
-		removeThread();	
+    removeThread();
 
-		pthread_exit((void*) NULL);
+    pthread_exit((void *) NULL);
 }
 
 /******************************************************************************************************
@@ -101,17 +109,18 @@ delle infrazioni da salvare su file di log
 /retval 1 nel caso ci siano altri elementi da salvare
 /retval 0 se non vi sono altre infrazioni
 */
-static int testStack(){
-	int ret,s;
-	pthread_mutex_lock(&mtxstack); 
-	s = size(stack);
-	ret =  ((numThread + s) > 0);
-	pthread_mutex_unlock(&mtxstack);
+static int testStack()
+{
+    int ret, s;
+    pthread_mutex_lock(&mtxstack);
+    s = size(stack);
+    ret = ((numThread + s) > 0);
+    pthread_mutex_unlock(&mtxstack);
 #if DEBUG
-	printf("TESTSTACK: %d -> %d + %d\n",ret,numThread,s);
-	fflush(stdout);
+    printf("TESTSTACK: %d -> %d + %d\n", ret, numThread, s);
+    fflush(stdout);
 #endif
-	return ret;
+    return ret;
 }
 
 /**
@@ -122,28 +131,30 @@ con i worker ztl e scrive le infrazione su un file passato come argomento
 
 \param arg file pointer al file delle infrazioni passato come argomento al main
  */
-static void* writer(void* arg){
-	
-	infr_t* inf = NULL;
-	
-	while(working || testStack() ){
+static void *writer(void *arg)
+{
 
-		ec_non0(pthread_mutex_lock(&mtxstack),"Problema nell'eseguire la lock sullo stack");
+    infr_t *inf = NULL;
 
-		if((inf = estraiInfrazione(&stack)) == NULL){
-			pthread_cond_wait(&empty,&mtxstack);
-		}
-		if(inf){		
-			fprintf((FILE*) arg,"%s",inf->passaggio);
-			free(inf);
-			inf = NULL;
-		}
+    while (working || testStack()) {
 
-		pthread_mutex_unlock(&mtxstack);
-		
+	ec_non0(pthread_mutex_lock(&mtxstack),
+		"Problema nell'eseguire la lock sullo stack");
+
+	if ((inf = estraiInfrazione(&stack)) == NULL) {
+	    pthread_cond_wait(&empty, &mtxstack);
+	}
+	if (inf) {
+	    fprintf((FILE *) arg, "%s", inf->passaggio);
+	    free(inf);
+	    inf = NULL;
 	}
 
-	pthread_exit((void*) NULL);
+	pthread_mutex_unlock(&mtxstack);
+
+    }
+
+    pthread_exit((void *) NULL);
 }
 
 /******************************************************************************************************
@@ -159,76 +170,83 @@ datti condivisa di tipo istack
 
 \param arg stringa contenente il passaggio da verificare
  */
-static void* worker(void* arg){
+static void *worker(void *arg)
+{
 
-        message_t richiesta,risposta;
-        channel_t sock;
-	char* s = (char*) arg;
-	int results;
+    message_t richiesta, risposta;
+    channel_t sock;
+    char *s = (char *) arg;
+    int results;
 
-	/* verifico il passaggio letto*/
-	if(! validaPassaggio(s)){
-		free(arg);
-                fprintf(stderr,"ZTL: Problema in un passaggio letto da stdin\n");
-                working = 0;
-		removeThread();
-		pthread_exit((void*) NULL);
-	}
-
-	/*inizializzo la struttura richiesta*/
-        richiesta.type = MSG_CHECK;
-        richiesta.length = LPASSAGGIO+1;
-        richiesta.buffer = s;
-        
-	/* Apro la socket verso il server*/
-        sock = openConnection(SOCKET);
-	
-	if ( sock == -1 ){
-		closeAndWrite("ZTL_WORKER: problema nell'apertura della socket verso il server -> permesso non valido\n",sock,arg);
-	}
-	if ( sock == SNAMETOOLONG ){ 
-		fprintf(stderr,"il pathname della socket e' troppo lungo\n");
-		exit(EXIT_FAILURE);
-	}
-
-	/* invio la richiesta al server*/
-        results = sendMessage(sock, &richiesta);
-	
-	if(results == -1 || results == SEOF){
-
-		closeAndWrite("ZTL_WORKER: problema nell'invio della richiesta al server -> permesso non valido\n",sock,arg);
-		
-	}
-
-	/* ricevo la risposta*/
-        results = receiveMessage(sock, &risposta);
-
-	if(results == -1 || results == SEOF){
-
-		closeAndWrite("ZTL_WORKER: problema nella ricezione della risposta dal server -> permesso non valido\n",sock,arg);
-		
-	}
-
-	/* verifico la validita` del permesso*/
-        if(risposta.type == MSG_OK ){
-                printf("ZTL: PERMESSO VALIDO\n");
-        }
-        else{
-                printf("ZTL: PERMESSO NON VALIDO\n");
-		pthread_mutex_lock(&mtxstack);
-
-		addInfrazione(&stack,s);
-		pthread_cond_signal(&empty);
-
-		pthread_mutex_unlock(&mtxstack);
-        }
-
-	closeConnection(sock);
+    /* verifico il passaggio letto */
+    if (!validaPassaggio(s)) {
 	free(arg);
-
+	fprintf(stderr, "ZTL: Problema in un passaggio letto da stdin\n");
+	/* termino l'applicazione */
+	working = 0;
 	removeThread();
+	pthread_exit((void *) NULL);
+    }
 
-	pthread_exit((void*) NULL);
+    /*inizializzo la struttura richiesta */
+    richiesta.type = MSG_CHECK;
+    richiesta.length = LPASSAGGIO + 1;
+    richiesta.buffer = s;
+
+    /* Apro la socket verso il server */
+    sock = openConnection(SOCKET);
+
+    if (sock == -1) {
+	closeAndWrite
+	    ("ZTL_WORKER: problema nell'apertura della socket verso il server -> permesso non valido\n",
+	     sock, arg);
+    }
+    if (sock == SNAMETOOLONG) {
+	fprintf(stderr, "il pathname della socket e' troppo lungo\n");
+	exit(EXIT_FAILURE);
+    }
+
+    /* invio la richiesta al server */
+    results = sendMessage(sock, &richiesta);
+
+    if (results == -1 || results == SEOF) {
+
+	closeAndWrite
+	    ("ZTL_WORKER: problema nell'invio della richiesta al server -> permesso non valido\n",
+	     sock, arg);
+
+    }
+
+    /* ricevo la risposta */
+    results = receiveMessage(sock, &risposta);
+
+    if (results == -1 || results == SEOF) {
+
+	closeAndWrite
+	    ("ZTL_WORKER: problema nella ricezione della risposta dal server -> permesso non valido\n",
+	     sock, arg);
+
+    }
+
+    /* verifico la validita` del permesso */
+    if (risposta.type == MSG_OK) {
+	printf("ZTL: PERMESSO VALIDO\n");
+    } else {
+	printf("ZTL: PERMESSO NON VALIDO\n");
+	pthread_mutex_lock(&mtxstack);
+
+	addInfrazione(&stack, s);
+	pthread_cond_signal(&empty);
+
+	pthread_mutex_unlock(&mtxstack);
+    }
+
+    closeConnection(sock);
+    free(arg);
+
+    removeThread();
+
+    pthread_exit((void *) NULL);
 }
 
 /******************************************************************************************************
@@ -244,23 +262,27 @@ del server ZTL.
 \retval -1 Se non si e` potuto stabilire la connessione
 \retval channel_t della nuova connessione
  */
-static channel_t connetti(){
-        int numretry = 1;
-        channel_t connessione = -1;
+static channel_t connetti()
+{
+    int numretry = 1;
+    channel_t connessione = -1;
 
-        while(connessione == -1 && numretry++ < MAXRETRY){
-#if DEBUG
-                        printf("TENTATIVO NUM: %d...",numretry-1);
-#endif  
-                connessione = openConnection(SOCKET);
-                if( connessione != -1 && connessione != SNAMETOOLONG ){
-#if DEBUG
-                        printf("CONNESSIONE AVVENUTA CON SUCCESSO\n");
-#endif  
-                }
-        }
-        
-        return connessione;
+    while (connessione == -1 && numretry++ < MAXRETRY) {
+
+	connessione = openConnection(SOCKET);
+
+	if (connessione == -1) {
+	    /* il server potrebbe non essere ancora attivo */
+	    sleep(1);
+	}
+	if (connessione == SNAMETOOLONG) {
+	    fprintf(stderr,
+		    "Problema nella connessione al server: nome della socket troppo lungo");
+	    exit(EXIT_FAILURE);
+	}
+    }
+
+    return connessione;
 }
 
 
@@ -268,28 +290,72 @@ static channel_t connetti(){
                             Funzioni per la gestione dei segnali e terminazione
 ******************************************************************************************************/
 
-static void termina(){
-        working=0;
+static void termina()
+{
+    working = 0;
+}
+
+/* funzione per l'installazione dei gestori dei segnali */
+static int handle_signals(void)
+{
+
+    /* maschera per l'installazione degli handler dei segnali */
+    sigset_t set;
+    /* strutture dati per la gestione dei segnali */
+    struct sigaction term, pipe;
+
+    /* assegno una maschera temporanea */
+    ec_meno1(sigfillset(&set),
+	     "Problema nell'inizializzazione della maschera segnali\n");
+    ec_meno1(sigprocmask(SIG_SETMASK, &set, NULL),
+	     "Problema nell'assegnazione maschera ai segnali\n");
+
+    /* installazione del gestore di SIGTERM e SIGINT */
+    bzero(&term, sizeof(term));
+    term.sa_handler = termina;
+
+    ec_meno1(sigaction(SIGTERM, &term, NULL),
+	     "problema nell'installazione del gestore di SIGTERM");
+    ec_meno1(sigaction(SIGINT, &term, NULL),
+	     "problema nell'installazione del gestore di SIGINT");
+
+    /* installazione del gestore di SIGPIPE */
+    bzero(&pipe, sizeof(pipe));
+    pipe.sa_handler = SIG_IGN;
+
+    ec_meno1(sigaction(SIGPIPE, &pipe, NULL),
+	     "problema nell'installazione del gestore di SIGPIPE");
+
+    /* tolgo la maschera */
+    ec_meno1(sigemptyset(&set),
+	     "Problema nella creazione della maschera finale\n");
+    ec_meno1(sigprocmask(SIG_SETMASK, &set, NULL),
+	     "Problema nella rimozione della maschera segnali\n");
+
+    return 0;
 }
 
 /* funzione di pulizia delle strutture dati del processo ZTL*/
-static void closeClient(pthread_t tid_writer,FILE* fp){
-	
-	/* Attendo la terminazione di tutti i thread worker*/
-	while(numThread){
-		sleep(1);
-	}
+static void closeClient(pthread_t tid_writer, FILE * fp)
+{
+	printf("CHIUSURA CLIENT ZTL\n");
+    /* notifico la terminazione dell'applicazione ad eventuali thread ancora attivi */
+    working = 0;
+    /* Attendo la terminazione di tutti i thread worker */
+    while (numThread) {
+	sleep(1);
+    }
 
-	/* Join sul writer */
-	pthread_mutex_lock(&mtxstack);
-	/* si manda un segnale di modo che il writer si renda conto che le richieste da servire sono terminate*/
-	pthread_cond_signal(&empty);
-	pthread_mutex_unlock(&mtxstack);
+    /* Join sul writer */
+    pthread_mutex_lock(&mtxstack);
+    /* si manda un segnale di modo che il writer si renda conto che le richieste da servire sono terminate */
+    pthread_cond_signal(&empty);
+    pthread_mutex_unlock(&mtxstack);
 
-	pthread_join(tid_writer,NULL);
+    pthread_join(tid_writer, NULL);
 
-	
-	fclose(fp);	
+    /* chiudo il file di log */
+    fclose(fp);
 
 }
 
@@ -297,96 +363,83 @@ static void closeClient(pthread_t tid_writer,FILE* fp){
                                                 MAIN
 ******************************************************************************************************/
 
-int main(int argc,char *argv[]){
-        
-        /* riferimento al file di log*/
-        FILE* fp;
-        /* strutture di supporto per la gestione dei segnali*/
-        struct sigaction term, pipe;
-        /* connessione al server*/
-        channel_t connessione;
-        /* buffer per le stringhe lette da stdin*/
-        char* temp;
-	/* riferimenti al thread writer e all'ultimo thread worker attivato*/
-        pthread_t tid_writer,tid_worker;
+int main(int argc, char *argv[])
+{
 
-	//mtrace();
+    /* riferimento al file di log */
+    FILE *fp;
+    /* strutture di supporto per la gestione dei segnali */
+    struct sigaction term, pipe;
+    /* connessione al server */
+    channel_t connessione;
+    /* buffer per le stringhe lette da stdin */
+    char *temp;
+    /* riferimenti al thread writer e all'ultimo thread worker attivato */
+    pthread_t tid_writer, tid_worker;
 
-        /* primo controllo validita argomenti*/
-        if(argc != 2){
-                fprintf(stderr,"Numero parametri invalido\n");
-                exit(EXIT_FAILURE);
-        }
 
-        /* installazione del gestore di SIGTERM e SIGINT*/
-        bzero(&term,sizeof(term));
-        term.sa_handler = termina;
-        
-        ec_meno1(sigaction ( SIGTERM, &term, NULL ), "problema nell'installazione del gestore di SIGTERM");
-        ec_meno1(sigaction ( SIGINT, &term, NULL ), "problema nell'installazione del gestore di SIGINT");       
-        
-        /* installazione del gestore di SIGPIPE*/
-        bzero(&pipe,sizeof(pipe));
-        pipe.sa_handler = SIG_IGN;
-        
-        ec_meno1(sigaction ( SIGPIPE, &pipe, NULL ),"problema nell'installazione del gestore di SIGPIPE");
+    /* primo controllo validita argomenti */
+    if (argc != 2) {
+	fprintf(stderr, "Numero parametri invalido\n");
+	exit(EXIT_FAILURE);
+    }
 
-        /* connessione con il server*/
-        ec_meno1(connessione = connetti(),"ZTL: Problema nella connessione al server\n");
-	/* la socket e` solo di prova, la chiudo immediatamente*/
-	close(connessione);
+    /* installazione del gestore dei segnali */
+    handle_signals();
+
+    /* connessione con il server */
+    ec_meno1(connessione =
+	     connetti(), "ZTL: Problema nella connessione al server\n");
+    /* la socket e` solo di prova, la chiudo immediatamente */
+    close(connessione);
 
 #if DEBUG
-        printf("CONNESSO AL SERVER\n");
-        fflush(stdout);
+    printf("CONNESSO AL SERVER\n");
+    fflush(stdout);
 #endif
 
-        /* apertura logfile*/
-        //queste vanno modificate con le chiamate alle funzioni di pulizia
-        ec_null(fp = fopen(argv[1],"w"),"problema nell'apertura del file di log\n");
-        
-       	pthread_create(&tid_writer,NULL,writer,fp);
+    /* apertura logfile */
+    //queste vanno modificate con le chiamate alle funzioni di pulizia
+    ec_null(fp =
+	    fopen(argv[1], "w"),
+	    "problema nell'apertura del file di log\n");
 
-        while(working){
-                
-                ec_null(temp = (char*) malloc(LPASSAGGIO+1),"Problema nell'allocazione della memoria");
-                /* lettura di un passaggio dallo stdin*/
-                if(fread(temp,LPASSAGGIO,1,stdin) == 0){
-#if DEBUG	
-                        printf("LETTO EOF 0 errore_> muoio male\n");
-#endif  
-			free(temp);
-			if(feof(stdin) || errno==EINTR){
-				working = 0;
-				closeClient(tid_writer,fp);
-				exit(EXIT_SUCCESS);
-			}
-			else{
-			//mettere la gestione di EINTR
-#if DEBUG	
-                        	printf("CON UN ERRORACCIO IN ERRNO\n");
-#endif  
-				exit(EXIT_FAILURE);
-			}
-		}
-		temp[LPASSAGGIO]='\0';
-                /* passaggio del lavoro a un thread worker*/
-                if(! (pthread_create(&tid_worker,NULL,worker,temp) == 0) ){
-#if DEBUG	
-                        printf("PROBLEMA NELLA CREAZIONE DI UN THREAD WORKER!!!\n");
-#endif  
-			exit(EXIT_FAILURE);
-                }
-		else{
-			addThread();
-		}
-		pthread_detach(tid_worker);
-        }      
-#if DEBUG	
-        printf("STO PER FARE LA CLOSE CLIENT\n");
-#endif  
-	closeClient(tid_writer, fp);
+    pthread_create(&tid_writer, NULL, writer, fp);
 
-	return 0;
-        
+    while (working) {
+
+	ec_null(temp =
+		(char *) malloc(LPASSAGGIO + 1),
+		"Problema nell'allocazione della memoria");
+
+	/* lettura di un passaggio dallo stdin */
+	if (fread(temp, LPASSAGGIO, 1, stdin) == 0) {
+
+	    free(temp);
+	    if (feof(stdin) || errno == EINTR) {
+		closeClient(tid_writer, fp);
+		exit(EXIT_SUCCESS);
+	    } else {
+		closeClient(tid_writer, fp);
+		exit(EXIT_FAILURE);
+	    }
+	}
+	temp[LPASSAGGIO] = '\0';
+
+	/* passaggio del lavoro a un thread worker */
+	if (!(pthread_create(&tid_worker, NULL, worker, temp) == 0)) {
+#if DEBUG
+	    printf("PROBLEMA NELLA CREAZIONE DI UN THREAD WORKER!!!\n");
+#endif
+	    exit(EXIT_FAILURE);
+	} else {
+	    addThread();
+	}
+	pthread_detach(tid_worker);
+    }
+
+    closeClient(tid_writer, fp);
+
+    return 0;
+
 }
