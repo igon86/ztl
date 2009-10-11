@@ -182,10 +182,9 @@ static void *worker(void *arg)
     if (!validaPassaggio(s)) {
 	free(arg);
 	fprintf(stderr, "ZTL: Problema in un passaggio letto da stdin\n");
-	/* termino l'applicazione */
-	working = 0;
+	/* L'errore non e` recuperabile quindi termino l'applicazione*/
 	removeThread();
-	pthread_exit((void *) NULL);
+	exit(EXIT_FAILURE);
     }
 
     /*inizializzo la struttura richiesta */
@@ -217,6 +216,8 @@ static void *worker(void *arg)
 
     }
 
+	printf("INVIATA RICHIESTA\n");
+
     /* ricevo la risposta */
     results = receiveMessage(sock, &risposta);
 
@@ -227,7 +228,8 @@ static void *worker(void *arg)
 	     sock, arg);
 
     }
-
+	
+	printf("RICEVUTA RISPOSTA\n");
     /* verifico la validita` del permesso */
     if (risposta.type == MSG_OK) {
 	printf("ZTL: PERMESSO VALIDO\n");
@@ -368,8 +370,6 @@ int main(int argc, char *argv[])
 
     /* riferimento al file di log */
     FILE *fp;
-    /* strutture di supporto per la gestione dei segnali */
-    struct sigaction term, pipe;
     /* connessione al server */
     channel_t connessione;
     /* buffer per le stringhe lette da stdin */
