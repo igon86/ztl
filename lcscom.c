@@ -95,8 +95,9 @@ int receiveMessage(channel_t sc, message_t * msg)
 
     TESTREAD(red, sizeof(int));
 	
-	if(red > 0){
+	if(msg->length > 0){
 		/* alloco la memoria per il corpo del messaggio*/
+		printf("Allocata la memoria bislacca\n");
 		if (!(msg->buffer = (char *) malloc(msg->length))) {
 			errno = ENOMEM;
 			return -1;

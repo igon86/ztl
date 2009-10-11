@@ -72,6 +72,7 @@ static message_t checkPermesso(message_t * request)
 	/** conversione del passaggio in time_t*/
     time_t tempo;
 
+	/* effettuo il parsing della stringa per poter invocare la checkPerm definita nella libreria ZTL*/
     strncpy(targa, request->buffer, 7);
 
     passaggio = request->buffer + LTARGA + 1;
@@ -79,7 +80,6 @@ static message_t checkPermesso(message_t * request)
 
     pthread_mutex_lock(&mtxtree);
 
-    response.type = MSG_OK;
     response.length = 0;
     response.buffer = NULL;
 
