@@ -307,7 +307,7 @@ static void closeServer(FILE * fp, nodo_t * tree, pthread_t tid_writer,
 
 int main(int argc, char *argv[])
 {
-
+	/* file pointer al file dei permessi*/
     FILE *file;
     /* id unico del thread writer e id dell'ultimo thred worker creato */
     pthread_t tid_writer, tid_worker;
@@ -326,7 +326,6 @@ int main(int argc, char *argv[])
 
     /* inizializzazione handler segnali */
     (void) handle_signals();
-
 
     /*primo caricamento albero dei permessi */
     ec_meno1(stat(argv[1], &mod),
