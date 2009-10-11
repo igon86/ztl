@@ -94,15 +94,18 @@ int receiveMessage(channel_t sc, message_t * msg)
     red = read(sc, &(msg->length), sizeof(int));
 
     TESTREAD(red, sizeof(int));
+	
+	if(red > 0){
+		/* alloco la memoria per il corpo del messaggio*/
+		if (!(msg->buffer = (char *) malloc(msg->length))) {
+			errno = ENOMEM;
+			return -1;
+		}
 
-    if (!(msg->buffer = (char *) malloc(msg->length))) {
-	errno = ENOMEM;
-	return -1;
-    }
+		red = read(sc, (msg->buffer), msg->length);
 
-    red = read(sc, (msg->buffer), msg->length);
-
-    TESTREAD(red, msg->length);
+		TESTREAD(red, msg->length);
+	}
 
     return red;
 }
@@ -117,20 +120,21 @@ int sendMessage(channel_t sc, message_t * msg)
 
     bytes = written = 0;
 
+	/*scrittura in ordine di tipo del messaggio, dimensione e corpo del messaggio stesso*/
     if ((written = write(sc, &(msg->type), 1)) < 1) {
 	return -1;
     }
-    bytes += written;
+    bytes = bytes + written;
 
     if ((written = write(sc, &(msg->length), sizeof(int))) < sizeof(int)) {
 	return -1;
     }
-    bytes += written;
+    bytes = bytes + written;
 
     if ((written = write(sc, msg->buffer, msg->length)) < msg->length) {
 	return -1;
     }
-    bytes += written;
+    bytes = bytes + written;
 
     return bytes;
 }
@@ -149,18 +153,18 @@ channel_t openConnection(const char *path)
     TESTARG(path);
 
     if (strlen(path) > UNIX_PATH_MAX) {
-	errno = EINVAL;
-	return SNAMETOOLONG;
+		errno = EINVAL;
+		return SNAMETOOLONG;
     }
 
-
+	sa.sun_family = AF_UNIX;
     strncpy(sa.sun_path, path, UNIX_PATH_MAX);
-    sa.sun_family = AF_UNIX;
+    
 
     sck = socket(AF_UNIX, SOCK_STREAM, 0);
     if (connect(sck, (struct sockaddr *) &sa, sizeof(sa)) == -1) {
-	close(sck);
-	return -1;
+		close(sck);
+		return -1;
     }
 
     return sck;
