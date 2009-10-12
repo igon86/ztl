@@ -16,13 +16,15 @@ int addInfrazione(infr_t ** l, const char *s)
 {
 
     infr_t *temp = *l;
-    *l = malloc(sizeof(infr_t));
+    *l = (infr_t *) malloc(sizeof(infr_t));
+    if (*l) {
+	strncpy((*l)->passaggio, s, LPASSAGGIO);
+	(*l)->passaggio[LPASSAGGIO] = '\0';
 
-    strncpy((*l)->passaggio, s, LPASSAGGIO);
-    (*l)->passaggio[LPASSAGGIO] = '\0';
-
-    (*l)->next = temp;
-
+	(*l)->next = temp;
+    } else {
+	return -1;
+    }
     return 0;
 }
 

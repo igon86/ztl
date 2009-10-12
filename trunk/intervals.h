@@ -52,6 +52,15 @@ typedef struct
   intervallo_t in;
 } permesso_t;
 
+/**
+Confronta 2 intervalli
+
+\param a,b puntatori agli intervalli da confrontare
+
+\retval 0 i due intervalli sono uguali
+\retval 1 l'intervallo a e` maggiore dell'intervallo b
+\retval -1 altrimenti
+*/
 int compIntervalli(intervallo_t *a,intervallo_t *b);
 
 /** 

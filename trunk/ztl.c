@@ -329,6 +329,12 @@ static int handle_signals(void)
 /* funzione di pulizia delle strutture dati del processo ZTL*/
 static void closeClient(pthread_t tid_writer, FILE * fp)
 {
+    int status;
+    if (errno == 0 || errno == EINTR) {
+	status = true;
+    } else {
+	status = false;
+    }
     printf("CHIUSURA CLIENT ZTL\n");
     /* notifico la terminazione dell'applicazione ad eventuali thread ancora attivi */
     working = 0;
@@ -343,11 +349,17 @@ static void closeClient(pthread_t tid_writer, FILE * fp)
     pthread_cond_signal(&empty);
     pthread_mutex_unlock(&mtxstack);
 
-    pthread_join(tid_writer, NULL);
-
+    if (tid_writer) {
+	pthread_join(tid_writer, NULL);
+    }
     /* chiudo il file di log */
     fclose(fp);
 
+    if (status) {
+	exit(EXIT_SUCCESS);
+    } else {
+	exit(EXIT_FAILURE);
+    }
 }
 
 /******************************************************************************************************
@@ -380,19 +392,16 @@ int main(int argc, char *argv[])
     ec_meno1(connessione =
 	     connetti(), "ZTL: Problema nella connessione al server\n");
     /* la socket e` solo di prova, la chiudo immediatamente */
-    close(connessione);
-
-#if DEBUG
-    printf("CONNESSO AL SERVER\n");
-    fflush(stdout);
-#endif
+    closeConnection(connessione);
 
     /* apertura logfile */
     ec_null(fp =
 	    fopen(argv[1], "w"),
 	    "problema nell'apertura del file di log\n");
 
-    pthread_create(&tid_writer, NULL, writer, fp);
+    ec_non0_c(pthread_create(&tid_writer, NULL, writer, fp),
+	      "Problema nella creazione del thread writer", closeClient(0,
+									fp));
 
     while (working) {
 
@@ -415,17 +424,17 @@ int main(int argc, char *argv[])
 	temp[LPASSAGGIO] = '\0';
 
 	/* passaggio del lavoro a un thread worker */
-	if (!(pthread_create(&tid_worker, NULL, worker, temp) == 0)) {
-#if DEBUG
-	    printf("PROBLEMA NELLA CREAZIONE DI UN THREAD WORKER!!!\n");
-#endif
-	    exit(EXIT_FAILURE);
-	} else {
-	    addThread();
-	}
-	pthread_detach(tid_worker);
+	ec_non0_c(pthread_create(&tid_worker, NULL, worker, temp),
+		  "Problema nella creazione di un thread worker",
+		  closeClient(tid_writer, fp));
+	addThread();
+
+	ec_non0_c(pthread_detach(tid_worker),
+		  "Problema nell'invocare la detach su un thread",
+		  closeClient(tid_writer, fp));
     }
 
+    errno = 0;
     closeClient(tid_writer, fp);
 
     return 0;

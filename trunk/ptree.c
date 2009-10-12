@@ -55,7 +55,7 @@ int addNodo(nodo_t ** r, nodo_t * add)
 	return 0;
     } else {
 	int discr = strcmp((*r)->targa, add->targa);
-		/**il nuovo nodo non deve avere targa uguale a un nodo gia presente*/
+	/**il nuovo nodo non deve avere targa uguale a un nodo gia presente*/
 	if (discr == 0) {
 	    errno = EINVAL;
 	    return 1;
@@ -102,19 +102,6 @@ nodo_t *creaNodo(permesso_t * pp)
     return toadd;
 }
 
-/**
- Aggiunge un nuovo permesso all'albero mantenendolo ordinato rispetto
- alle targhe. Se la targa cui si riferisce il permesso e' gia'
- presente si aggiunge l'intervallo alla lista dei permessi di quella
- targa. Altrimenti si aggiunge un nuovo nodo mantenendo l'albero
- ordinato lessicograficamente rispetto alle targhe
-
- \param r puntatore alla radice dell'albero
- \param pp puntatore al permesso da inserire
-
- \retval 0 se l'inserzione e' andata a buon fine
- \retval 1 altrimenti
- */
 int addPerm(nodo_t ** r, permesso_t * pp)
 {
     if (pp == NULL) {
@@ -128,10 +115,10 @@ int addPerm(nodo_t ** r, permesso_t * pp)
 	    return 0;
     } else {
 	int discr = strcmp((*r)->targa, pp->targa);
-		/**esiste gia un nodo per la targa.
-		 * mi limito ad aggiornare la lista degli intervalli*/
+	/**esiste gia un nodo per la targa.
+	* mi limito ad aggiornare la lista degli intervalli*/
 	if (discr == 0) {
-			/**devo controllare che la il nuovo permesso sia stato aggiunto*/
+		/**devo controllare che la il nuovo permesso sia stato aggiunto*/
 	    return addIntervallo(&((*r)->lint), &(pp->in));
 	} else if (discr < 0) {
 	    return addPerm(&((*r)->right), pp);
@@ -140,14 +127,6 @@ int addPerm(nodo_t ** r, permesso_t * pp)
     }
 }
 
-/** Rimuove le informazioni relative ad un certo permesso dall'albero
-
- \param r puntatore alla radice dell'albero
- \param pp permesso da rimuovere
-
- \retval -1 se si e' verificato un errore o il permesso non e' presente
- \retval 0 se tutto OK
- */
 int removePerm(permesso_t * pp, nodo_t ** r)
 {
     int discr;
@@ -178,13 +157,7 @@ int removePerm(permesso_t * pp, nodo_t ** r)
     }
 }
 
-/** Cerca il nodo dell'albero corrispondente ad un certo permesso
- \param r radice dell'albero
- \param pp permesso da cercare
 
- \retval p puntatore al nodo che contiene il permesso
- \retval NULL se il permesso non e' presente
- */
 nodo_t *findPerm(permesso_t * pp, nodo_t * r)
 {
     int discr;
@@ -205,16 +178,7 @@ nodo_t *findPerm(permesso_t * pp, nodo_t * r)
     }
 }
 
-/** Controlla se esiste un permesso per una certa targa ad un tempo dato
- *
- \param r radice dell'albero
 
- \param targa la targa da cercare
- \param t tempo in cui deve essere attivo il permesso
-
- \retval 1 se al tempo t e' attivo un permesso per quella targa
- \retval 0 se non e' attivo alcun permesso
- */
 int checkPerm(char targa[], time_t t, nodo_t * r)
 {
 
@@ -235,17 +199,7 @@ int checkPerm(char targa[], time_t t, nodo_t * r)
     }
 }
 
-/**
- * Legge il file che contiene l'archivio storico dei permessi e crea
- * l'albero di ricerca ordinato.
- * i permessi sono scritti in formato stringa e separati da un '\n'
 
- \param ingresso il file di ingresso
- \param r il puntatore al puntatore alla radice dell'albero
-
- \retval n il numero dei permessi letti ed inseriti nell'albero se tutto e' andato a buon fine
- \retval -1 altrimenti
- */
 int loadPerm(FILE * ingresso, nodo_t ** r)
 {
     permesso_t *pt;
@@ -267,17 +221,7 @@ int loadPerm(FILE * ingresso, nodo_t ** r)
     return dopo - prima;
 }
 
-/**
- Scrive tutti i permessi nell'albero sul file 'uscita', i permessi
- sono prima convertiti in stringa e scritti nel file separati da '\n'
- i permessi sono scritti su file in ordine
 
- \param uscita il file su cui scrivere
- \param r il puntatore alla radice dell'albero
-
- \retval il numero di permessi registrati nel file
- \retval -1 se si e' verificato un errore
- */
 int storePerm(FILE * uscita, nodo_t * r)
 {
     int i, j;
@@ -305,9 +249,6 @@ int storePerm(FILE * uscita, nodo_t * r)
     return i + j + storePerm(uscita, r->right);
 }
 
-/** Stampa l'albero su stdout
- \param r radice dell'albero da stampare
- */
 void printTree(nodo_t * r)
 {
     if (r != NULL) {
@@ -318,10 +259,6 @@ void printTree(nodo_t * r)
     }
 }
 
-/** Dealloca l'albero
-
- \param r radice dell'albero da deallocare
- */
 void freeTree(nodo_t * r)
 {
     if (r != NULL) {

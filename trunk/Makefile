@@ -30,7 +30,10 @@ OBJS = intervals.o ptree.o ilist.o test-libztl.o
 exe = prova
 
 # phony targets
-.PHONY: clean testiniziale lib test1 test2 docu consegna 
+.PHONY: clean testiniziale lib test1 test2 docu consegna all
+
+all: lib ztl permserver
+	@echo -e 'Make all eseguito'
 
 # creazione libreria
 lib:  $(OBJS)
@@ -77,7 +80,7 @@ docu: ../Doc/Doxyfile
 
 #ripulisce
 clean:
-	-rm -f *.o *.~ *~
+	-rm -rf *.o *.~ *~ multe*
 
 # test con main iniziale
 testiniziale: 
