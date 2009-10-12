@@ -72,7 +72,7 @@ static message_t checkPermesso(message_t * request)
 	/** conversione del passaggio in time_t*/
     time_t tempo;
 
-	/* effettuo il parsing della stringa per poter invocare la checkPerm definita nella libreria ZTL*/
+    /* effettuo il parsing della stringa per poter invocare la checkPerm definita nella libreria ZTL */
     strncpy(targa, request->buffer, 7);
 
     passaggio = request->buffer + LTARGA + 1;
@@ -245,7 +245,7 @@ static int handle_signals(void)
 static void closeServer(FILE * fp, nodo_t * tree, pthread_t tid_writer,
 			serverChannel_t com)
 {
-	printf("CHIUSURA SERVER ZTL\n");
+    printf("CHIUSURA SERVER ZTL\n");
 	/** variabile temporanea utilizzata per salvare lo stato dei thread e successivamente il loro numero*/
     int status;
 
@@ -307,7 +307,7 @@ static void closeServer(FILE * fp, nodo_t * tree, pthread_t tid_writer,
 
 int main(int argc, char *argv[])
 {
-	/* file pointer al file dei permessi*/
+    /* file pointer al file dei permessi */
     FILE *file;
     /* id unico del thread writer e id dell'ultimo thred worker creato */
     pthread_t tid_writer, tid_worker;

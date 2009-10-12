@@ -1,0 +1,11 @@
+#!/bin/bash
+indent -kr -br -brs permserver.h
+indent -kr -br -brs permserver.c
+indent -kr -br -brs ztl.c
+indent -kr -br -brs lcscom.c
+indent -kr -br -brs istack.h
+indent -kr -br -brs istack.c
+indent -kr -br -brs intervals.c
+indent -kr -br -brs ptree.c
+indent -kr -br -brs ilist.c
+
