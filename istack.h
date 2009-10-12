@@ -19,10 +19,10 @@ originale dell'autore.
 
 /** lista di Infrazioni */
 typedef struct infr {
-  	/** targa del veicolo*/
-  	char passaggio[LPASSAGGIO+1];
-  	/** elemento succssivo */
-  	struct infr* next;
+	/** targa del veicolo*/
+    char passaggio[LPASSAGGIO + 1];
+	/** elemento succssivo */
+    struct infr *next;
 } infr_t;
 
 /** aggiunge un infrazione allo stack (allocando la memoria necessaria)
@@ -38,7 +38,7 @@ typedef struct infr {
     \retval 0 se tutto e' andato a buon fine
 
  */
-int addInfrazione (infr_t ** l,const char* t);
+int addInfrazione(infr_t ** l, const char *t);
 
 /** ritorna la prima infrazione presente nello stack
 
@@ -47,20 +47,20 @@ int addInfrazione (infr_t ** l,const char* t);
     \retval puntatore alla prima infrazione presente nello stack
  */
 
-infr_t* estraiInfrazione (infr_t ** l);
+infr_t *estraiInfrazione(infr_t ** l);
 
 /** ritorna la dimensione dello stack
 	param l puntatore allo stack
 
 	/retval dimensione dello stack
 */
-int size(infr_t* l);
+int size(infr_t * l);
 
 /**Dealloca lo stack
 
 /param l puntatore allo stack da deallocare
 */
 
-void freeStack (infr_t *l);
+void freeStack(infr_t * l);
 
 #endif

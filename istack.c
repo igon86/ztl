@@ -12,42 +12,45 @@ originale dell'autore.
 #include "istack.h"
 
 
-int addInfrazione (infr_t ** l,const char* s){
+int addInfrazione(infr_t ** l, const char *s)
+{
 
-	infr_t* temp = *l;
-	*l =  malloc(sizeof(infr_t));
-	
-	strncpy((*l)->passaggio,s,LPASSAGGIO);
-	(*l)->passaggio[LPASSAGGIO] = '\0';
+    infr_t *temp = *l;
+    *l = malloc(sizeof(infr_t));
 
-	(*l)->next = temp;
+    strncpy((*l)->passaggio, s, LPASSAGGIO);
+    (*l)->passaggio[LPASSAGGIO] = '\0';
 
+    (*l)->next = temp;
+
+    return 0;
+}
+
+infr_t *estraiInfrazione(infr_t ** l)
+{
+    infr_t *ret = *l;
+
+    if (*l != NULL) {
+	*l = (*l)->next;
+    }
+
+    return ret;
+}
+
+
+int size(infr_t * l)
+{
+    if (l != NULL) {
+	return 1 + size(l->next);
+    } else {
 	return 0;
+    }
 }
 
-infr_t* estraiInfrazione (infr_t ** l){
-	infr_t* ret = *l;
-	
-	if (*l != NULL){
-		*l = (*l)->next;
-	}
-
-	return ret;
-}
-
-
-int size(infr_t *l){
-	if(l!=NULL){
-		return 1+size(l->next);
-	}
-	else{
-		return 0;
-	}
-}
-
-void freeStack(infr_t *l){
-	if (l!=NULL){
- 		free(l->next);
-		free(l);
-	}
+void freeStack(infr_t * l)
+{
+    if (l != NULL) {
+	free(l->next);
+	free(l);
+    }
 }

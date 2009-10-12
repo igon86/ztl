@@ -182,7 +182,7 @@ static void *worker(void *arg)
     if (!validaPassaggio(s)) {
 	free(arg);
 	fprintf(stderr, "ZTL: Problema in un passaggio letto da stdin\n");
-	/* L'errore non e` recuperabile quindi termino l'applicazione*/
+	/* L'errore non e` recuperabile quindi termino l'applicazione */
 	removeThread();
 	exit(EXIT_FAILURE);
     }
@@ -216,7 +216,7 @@ static void *worker(void *arg)
 
     }
 
-	printf("INVIATA RICHIESTA\n");
+    printf("INVIATA RICHIESTA\n");
 
     /* ricevo la risposta */
     results = receiveMessage(sock, &risposta);
@@ -228,8 +228,8 @@ static void *worker(void *arg)
 	     sock, arg);
 
     }
-	
-	printf("RICEVUTA RISPOSTA\n");
+
+    printf("RICEVUTA RISPOSTA\n");
     /* verifico la validita` del permesso */
     if (risposta.type == MSG_OK) {
 	printf("ZTL: PERMESSO VALIDO\n");
@@ -340,7 +340,7 @@ static int handle_signals(void)
 /* funzione di pulizia delle strutture dati del processo ZTL*/
 static void closeClient(pthread_t tid_writer, FILE * fp)
 {
-	printf("CHIUSURA CLIENT ZTL\n");
+    printf("CHIUSURA CLIENT ZTL\n");
     /* notifico la terminazione dell'applicazione ad eventuali thread ancora attivi */
     working = 0;
     /* Attendo la terminazione di tutti i thread worker */
