@@ -61,6 +61,8 @@ static void removeThread()
 					Funzione thread worker
 ******************************************************************************************************/
 
+/** funzione che effettua il parsing della richiesta del client per poter invocare checkPerm 
+e ritorna il messaggio di risposta da inviare al client*/
 static message_t checkPermesso(message_t * request)
 {
 	/** risposta ottenuta dal server*/
@@ -245,7 +247,9 @@ static void closeServer(FILE * fp, nodo_t * tree, pthread_t tid_writer,
     }
 
     /* Join sul writer */
-    pthread_join(tid_writer, NULL);
+    if (tid_writer) {
+	pthread_join(tid_writer, NULL);
+    }
 
     /* chiusura del file dei permessi */
     if (fp) {
@@ -328,7 +332,7 @@ int main(int argc, char *argv[])
     /*creazione thread writer */
     ec_non0_c(pthread_create(&tid_writer, NULL, writer, argv[1]),
 	      "Problema nella creazione del thread writer",
-	      closeServer(file, tree, tid_writer, com));
+	      closeServer(file, tree, 0, com));
 
     while (working) {
 

@@ -18,11 +18,17 @@ typedef struct elem {
   struct elem* next;
 } elem_t;
 
-/** Verifica che esista un intervallo nella lista che contiene il time_t
- * passato.
- * Ritorna 1 se lo trova 0 altrimenti.
- */
+/**
+Verifica che esista un intervallo nella lista contenente il time_t passato per argomento
+
+\param l puntatore alla lista in cui effettuare la ricerca
+\param t time_t da ricercare
+
+\retval 1 se il time_t e` contenuto in uno degli intervalli della lista
+\retval 0 altrimenti
+*/
 int checkTime(elem_t *l,time_t t);
+
 /** aggiunge un intervallo alla lista (allocando la memoria necessaria)
     nella lista NON ci sono intervalli replicati se l'intervallo
     e' gia' presente non modifica la lista

@@ -28,8 +28,49 @@ originale dell'autore.
 #define TESTARG(A) \
 	if ( !A ) { errno = EINVAL; return -1;}
 
-#define TESTWRITE(W,DIM,B) \
-	if ( W != DIM ) {return -1;} B +=W;
+static ssize_t Read(int fd, const void *buf, size_t nbyte)
+{
+    ssize_t nread = 0, n;
+    printf("READ MODIFICATA\n");
+    do {
+	if ((n = read(fd, &((char *) buf)[nread], nbyte - nread)) == -1) {
+	    /* "EINTR is not really an error */
+	    if (errno == EINTR) {
+		continue;
+	    }
+	    /* ERROR */
+	    else {
+		return -1;
+	    }
+	}
+	/* EOF */
+	if (n == 0) {
+	    return nread;
+	}
+	nread = nread + n;
+    } while (nread < nbyte);
+
+    return nread;
+}
+
+static ssize_t Write(int fd, const void *buf, size_t nbyte)
+{
+    int nwritten = 0, n;
+    printf("Write MOdificata\n");
+    do {
+	if ((n =
+	     write(fd, &((const char *) buf)[nwritten],
+		   nbyte - nwritten)) == -1) {
+	    if (errno == EINTR) {
+		continue;
+	    } else {
+		return -1;
+	    }
+	}
+	nwritten = nwritten + n;
+    } while (nwritten < nbyte);
+    return nwritten;
+}
 
 serverChannel_t createServerChannel(const char *path)
 {
@@ -86,24 +127,23 @@ int receiveMessage(channel_t sc, message_t * msg)
     TESTARG(msg);
 
     /* leggo il tipo del messaggio */
-    red = read(sc, &(msg->type), 1);
+    red = Read(sc, &(msg->type), 1);
 
     TESTREAD(red, 1);
 
     /* leggo la lunghezza del buffer */
-    red = read(sc, &(msg->length), sizeof(int));
+    red = Read(sc, &(msg->length), sizeof(int));
 
     TESTREAD(red, sizeof(int));
 
     if (msg->length > 0) {
 	/* alloco la memoria per il corpo del messaggio */
-	printf("Allocata la memoria bislacca\n");
 	if (!(msg->buffer = (char *) malloc(msg->length))) {
 	    errno = ENOMEM;
 	    return -1;
 	}
 
-	red = read(sc, (msg->buffer), msg->length);
+	red = Read(sc, (msg->buffer), msg->length);
 
 	TESTREAD(red, msg->length);
     }
@@ -122,17 +162,17 @@ int sendMessage(channel_t sc, message_t * msg)
     bytes = written = 0;
 
     /*scrittura in ordine di tipo del messaggio, dimensione e corpo del messaggio stesso */
-    if ((written = write(sc, &(msg->type), 1)) < 1) {
+    if ((written = Write(sc, &(msg->type), 1)) < 1) {
 	return -1;
     }
     bytes = bytes + written;
 
-    if ((written = write(sc, &(msg->length), sizeof(int))) < sizeof(int)) {
+    if ((written = Write(sc, &(msg->length), sizeof(int))) < sizeof(int)) {
 	return -1;
     }
     bytes = bytes + written;
 
-    if ((written = write(sc, msg->buffer, msg->length)) < msg->length) {
+    if ((written = Write(sc, msg->buffer, msg->length)) < msg->length) {
 	return -1;
     }
     bytes = bytes + written;
