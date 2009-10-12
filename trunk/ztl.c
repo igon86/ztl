@@ -62,17 +62,6 @@ static void removeThread()
 	    "Problema nell'eseguire la unlock su mtxnumThread");
 }
 
-static void closeWorker(char *err, void *arg)
-{
-
-    fprintf(stderr, "%s", err);
-
-    free(arg);
-    removeThread();
-
-    pthread_exit((void *) NULL);
-}
-
 static void closeAndWrite(char *err, channel_t sock, void *arg)
 {
 
@@ -399,7 +388,6 @@ int main(int argc, char *argv[])
 #endif
 
     /* apertura logfile */
-    //queste vanno modificate con le chiamate alle funzioni di pulizia
     ec_null(fp =
 	    fopen(argv[1], "w"),
 	    "problema nell'apertura del file di log\n");

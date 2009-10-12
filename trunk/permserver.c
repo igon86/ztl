@@ -109,7 +109,7 @@ static void *writer(void *arg)
 
     file = fopen((char *) arg, "r");
     while (working) {
-	//aggiungere comando per mettere working a zero contestualmente alla scoperta dell'errore -> oppure la exit chiude tutto?
+
 	ec_meno1(stat((char *) arg, &mod),
 		 "problema nella lettura della data di modifica del file dei permessi");
 	if (mod.st_mtime > lastModified) {
@@ -129,19 +129,12 @@ static void *writer(void *arg)
 	    pthread_mutex_unlock(&mtxtree);
 
 	    freeTree(temp);
-#if DEBUG
-	    printf("AGGIORNATO ALBERO \n");
-	    fflush(stdout);
-#endif
 	}
 	sleep(NSEC);
     }
 
     fclose(file);
-#if DEBUG
-    printf("PERMSERVER_WRITER EXIT.....");
-    fflush(stdout);
-#endif
+
     pthread_exit((void *) NULL);
 }
 
@@ -158,29 +151,23 @@ static void *worker(void *arg)
     result = receiveMessage((channel_t) arg, &request);
 
     if (result == SEOF) {
-	printf("PERMSERVER_WORKER: nessun messaggio\n");
 	removeThread();
-	pthread_exit((void *) NULL);;
+	pthread_exit((void *) NULL);
     }
     if (result == -1) {
-	perror("E` successo sto bordellO: ");
+	perror
+	    ("PERMSERVER_WORKER: Problema nella ricezione di una richiesta");
 	exit(EXIT_FAILURE);
     }
-#if DEBUG
-    printf("PERMSERVER_Worker: Ricevuto un %c su %s", request.type,
-	   request.buffer);
-#endif
 
-
-    //checkPermesso ritorna direttamente il messaggio da inviare al client
+	/** checkPermesso e` un metodo apposito che ritorna direttamente il messaggio da inviare al client*/
     response = checkPermesso(&request);
 
-    ec_meno1(result =
-	     sendMessage((channel_t) arg, &response),
-	     "Problema nell'invio risposta");
+    result = sendMessage((channel_t) arg, &response);
 
-    if (result == SEOF) {
-	//gestione chiusura socket -> impossibile in questo caso vero?
+    if (result == SEOF || result == -1) {
+	perror("PERMSERVER_WORKER: Problema nell'invio risposta");
+	pthread_exit((void *) NULL);
     }
 
     closeConnection((channel_t) arg);
@@ -245,9 +232,11 @@ static int handle_signals(void)
 static void closeServer(FILE * fp, nodo_t * tree, pthread_t tid_writer,
 			serverChannel_t com)
 {
-    printf("CHIUSURA SERVER ZTL\n");
+
 	/** variabile temporanea utilizzata per salvare lo stato dei thread e successivamente il loro numero*/
     int status;
+
+    printf("CHIUSURA SERVER ZTL\n");
 
     if (errno == 0 || errno == EINTR) {
 	status = true;
@@ -256,39 +245,23 @@ static void closeServer(FILE * fp, nodo_t * tree, pthread_t tid_writer,
     }
 
     /* Join sul writer */
-#if DEBUG
-    printf("JOIN THREAD WRITER...");
-    fflush(stdout);
-#endif
-
     pthread_join(tid_writer, NULL);
 
-#if DEBUG
-    printf("COMPLETATA!\n");
-    fflush(stdout);
-#endif
-
+    /* chiusura del file dei permessi */
     if (fp) {
-#if DEBUG
-	printf("CHIUDO FILE\n");
-	fflush(stdout);
-#endif
 	fclose(fp);
     }
-#if DEBUG
-    printf("FREE SULL'ALBERO\n");
-    fflush(stdout);
-#endif
+
+    /* free sull'albero dei permessi */
     freeTree(tree);
 
+    /* chiusura della server socket */
     if (com) {
 	closeSocket(com);
 	unlink(SOCKET);
     }
-#if DEBUG
-    printf("ATTESA THREAD!\n");
-    fflush(stdout);
-#endif
+
+    /* attesa della terminazione di tutti i thread */
     while (numThread) {
 	sleep(1);
     }
